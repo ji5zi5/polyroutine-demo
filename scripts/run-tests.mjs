@@ -6,6 +6,8 @@ const [mode, ...args] = process.argv.slice(2)
 const filterIndex = args.indexOf("--filter")
 const filter = filterIndex === -1 ? undefined : args[filterIndex + 1]
 const reporter = args.find((argument) => argument.startsWith("--reporter="))
+const seedArgument = args.find((argument) => argument.startsWith("--seed="))
+const seed = seedArgument?.slice("--seed=".length)
 const packageManagerPath = process.env.npm_execpath
 if (packageManagerPath === undefined) {
   throw new TypeError("run tests through the package manager")
@@ -50,7 +52,21 @@ switch (mode) {
       "--test-concurrency=4",
       "tests/bootstrap.architecture.test.mjs",
     ])
-    run(process.execPath, [packageManagerPath, "exec", "vitest", "run"])
+    if (filter === "predictions" || filter === "prediction-insert" || filter === undefined) {
+      run(process.execPath, [
+        packageManagerPath,
+        "exec",
+        "vitest",
+        "run",
+        "--config",
+        "vitest.integration.config.ts",
+        ...(reporter === undefined ? [] : [reporter]),
+        ...(seed === undefined ? [] : ["--sequence.shuffle", `--sequence.seed=${seed}`]),
+        "apps/server/test/predictions.race.test.ts",
+      ])
+    } else {
+      run(process.execPath, [packageManagerPath, "exec", "vitest", "run"])
+    }
     break
   default:
     throw new TypeError(`unknown test mode: ${String(mode)}`)

@@ -11,6 +11,8 @@ import { registerAccountsRoutes } from "./modules/accounts/index.js"
 import { registerGoalRoutes } from "./modules/goals/routes.js"
 import { createGoalService } from "./modules/goals/service.js"
 import { serverModules } from "./modules/index.js"
+import { registerPredictionRoutes } from "./modules/predictions/routes.js"
+import { createPredictionService } from "./modules/predictions/service.js"
 
 export type ServerOptions = {
   readonly accounts?: {
@@ -42,6 +44,14 @@ export function createServer(options: ServerOptions) {
   registerGoalRoutes(
     app,
     createGoalService({
+      clock: options.clock,
+      database: options.database,
+      uuid: options.uuid,
+    }),
+  )
+  registerPredictionRoutes(
+    app,
+    createPredictionService({
       clock: options.clock,
       database: options.database,
       uuid: options.uuid,
