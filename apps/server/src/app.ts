@@ -6,9 +6,16 @@ import type {
 } from "@polyroutine/contracts"
 import type { DatabaseHandle } from "@polyroutine/db"
 import Fastify from "fastify"
+import type { AccountAuditSink } from "./modules/accounts/index.js"
+import { registerAccountsRoutes } from "./modules/accounts/index.js"
 import { serverModules } from "./modules/index.js"
 
 export type ServerOptions = {
+  readonly accounts?: {
+    readonly audit: AccountAuditSink
+    readonly expectedOrigin: string
+    readonly sessionSecret: string
+  }
   readonly clock: Clock
   readonly database: DatabaseHandle
   readonly evidenceObjectStore: EvidenceObjectStore
@@ -20,6 +27,16 @@ export function createServer(options: ServerOptions) {
   const app = Fastify()
   app.decorate("evidenceObjectStore", options.evidenceObjectStore)
   app.decorate("evidenceVerifier", options.evidenceVerifier)
+  if (options.accounts !== undefined) {
+    registerAccountsRoutes(app, {
+      audit: options.accounts.audit,
+      clock: options.clock,
+      database: options.database,
+      expectedOrigin: options.accounts.expectedOrigin,
+      sessionSecret: options.accounts.sessionSecret,
+      uuid: options.uuid,
+    })
+  }
 
   app.get("/health/live", async () => ({
     checkedAt: options.clock.now().toISOString(),

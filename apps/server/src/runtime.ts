@@ -19,6 +19,11 @@ export function createRuntime(config: RuntimeConfig) {
     secretAccessKey: config.OBJECT_STORAGE_SECRET_KEY,
   })
   const server = createServer({
+    accounts: {
+      audit: { write: () => undefined },
+      expectedOrigin: config.PUBLIC_ORIGIN,
+      sessionSecret: config.SESSION_SECRET,
+    },
     clock: { now: () => new Date() },
     database,
     evidenceObjectStore,

@@ -29,7 +29,7 @@ switch (mode) {
     if (filter === undefined) {
       run(process.execPath, [packageManagerPath, "exec", "vitest", "run"])
     } else if (filter !== "bootstrap") {
-      run(process.execPath, [packageManagerPath, "exec", "vitest", "run", "-t", filter])
+      run(process.execPath, [packageManagerPath, "exec", "vitest", "run", filter])
     }
     break
   case "integration":
