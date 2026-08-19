@@ -5,6 +5,7 @@ import { spawnSync } from "node:child_process"
 const [mode, ...args] = process.argv.slice(2)
 const filterIndex = args.indexOf("--filter")
 const filter = filterIndex === -1 ? undefined : args[filterIndex + 1]
+const reporter = args.find((argument) => argument.startsWith("--reporter="))
 const packageManagerPath = process.env.npm_execpath
 if (packageManagerPath === undefined) {
   throw new TypeError("run tests through the package manager")
@@ -39,6 +40,7 @@ switch (mode) {
       "run",
       "--config",
       "vitest.integration.config.ts",
+      ...(reporter === undefined ? [] : [reporter]),
       filter === undefined ? "apps/server/test" : `apps/server/test/${filter}.integration.test.ts`,
     ])
     break

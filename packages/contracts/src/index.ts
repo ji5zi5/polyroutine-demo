@@ -1,3 +1,5 @@
+export * from "./domain/index.js"
+
 declare const evidenceObjectKeyBrand: unique symbol
 
 export type EvidenceObjectKey = string & {

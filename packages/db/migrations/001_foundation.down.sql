@@ -1,0 +1,14 @@
+drop table if exists analytics_events;
+drop table if exists goal_correction_events;
+drop table if exists reputation_events;
+drop table if exists moderation_cases;
+drop table if exists verification_jobs;
+drop table if exists evidences;
+drop table if exists evidence_challenges;
+drop table if exists feed_exposures;
+drop table if exists predictions;
+drop table if exists goals;
+drop table if exists sessions;
+drop table if exists users;
+drop function if exists require_iana_timezone();
+drop extension if exists pgcrypto;
