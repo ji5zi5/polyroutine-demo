@@ -1,0 +1,14 @@
+{
+  "client": "TBD",
+  "client_root": "apps/web",
+  "recipe": "study_note_photo_v1",
+  "recipe_version": 1,
+  "readiness": "omit",
+  "capture": "server_guided_challenge_10m",
+  "feed": "atomic_immutable_prediction_insert",
+  "reputation": "completion_10_strict_no_majority_success_5",
+  "retention": "terminal_24h_pending_report_legal_hold_7d_metadata_90d",
+  "verdict": "bounded_operator_review",
+  "monthly_cost_cap": { "amount": 100000, "currency": "KRW" },
+  "adult_only": true
+}
