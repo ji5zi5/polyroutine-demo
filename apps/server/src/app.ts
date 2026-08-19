@@ -8,6 +8,8 @@ import type { DatabaseHandle } from "@polyroutine/db"
 import Fastify from "fastify"
 import type { AccountAuditSink } from "./modules/accounts/index.js"
 import { registerAccountsRoutes } from "./modules/accounts/index.js"
+import { registerGoalRoutes } from "./modules/goals/routes.js"
+import { createGoalService } from "./modules/goals/service.js"
 import { serverModules } from "./modules/index.js"
 
 export type ServerOptions = {
@@ -37,6 +39,14 @@ export function createServer(options: ServerOptions) {
       uuid: options.uuid,
     })
   }
+  registerGoalRoutes(
+    app,
+    createGoalService({
+      clock: options.clock,
+      database: options.database,
+      uuid: options.uuid,
+    }),
+  )
 
   app.get("/health/live", async () => ({
     checkedAt: options.clock.now().toISOString(),
