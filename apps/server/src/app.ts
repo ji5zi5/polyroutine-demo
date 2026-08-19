@@ -1,0 +1,44 @@
+import type {
+  Clock,
+  EvidenceObjectStore,
+  EvidenceVerifier,
+  UuidFactory,
+} from "@polyroutine/contracts"
+import type { DatabaseHandle } from "@polyroutine/db"
+import Fastify from "fastify"
+import { serverModules } from "./modules/index.js"
+
+export type ServerOptions = {
+  readonly clock: Clock
+  readonly database: DatabaseHandle
+  readonly evidenceObjectStore: EvidenceObjectStore
+  readonly evidenceVerifier: EvidenceVerifier
+  readonly uuid: UuidFactory
+}
+
+export function createServer(options: ServerOptions) {
+  const app = Fastify()
+  app.decorate("evidenceObjectStore", options.evidenceObjectStore)
+  app.decorate("evidenceVerifier", options.evidenceVerifier)
+
+  app.get("/health/live", async () => ({
+    checkedAt: options.clock.now().toISOString(),
+    modules: serverModules.map(({ name }) => name),
+    requestId: options.uuid.create(),
+    status: "live" as const,
+  }))
+
+  app.get("/health/ready", async (_request, reply) => {
+    try {
+      await options.database.ready()
+      return { status: "ready" as const }
+    } catch (error) {
+      if (error instanceof Error) {
+        return reply.status(503).send({ status: "not_ready" as const })
+      }
+      throw error
+    }
+  })
+
+  return app
+}

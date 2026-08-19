@@ -1,0 +1,28 @@
+{
+  "name": "poly-routine",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "packageManager": "pnpm@10.34.5",
+  "engines": {
+    "node": ">=24 <25",
+    "pnpm": ">=10 <11"
+  },
+  "scripts": {
+    "build": "corepack pnpm -r --if-present build",
+    "client:verify": "corepack pnpm --filter @polyroutine/web client:verify",
+    "lint": "biome check .",
+    "qa:cleanup": "node scripts/qa-cleanup.mjs",
+    "test": "node scripts/run-tests.mjs unit",
+    "test:e2e": "corepack pnpm --filter @polyroutine/web test:e2e",
+    "test:integration": "node scripts/run-tests.mjs integration",
+    "test:race": "node scripts/run-tests.mjs race",
+    "typecheck": "corepack pnpm -r --if-present typecheck"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.9",
+    "@types/node": "26.2.0",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}
