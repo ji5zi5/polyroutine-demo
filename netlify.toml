@@ -1,6 +1,7 @@
 [build]
-command = "corepack pnpm --filter @polyroutine/web build"
-publish = "apps/web/.next"
+base = "apps/web"
+command = "corepack pnpm build"
+publish = ".next"
 
 [build.environment]
 NODE_VERSION = "24"
