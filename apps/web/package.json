@@ -10,6 +10,7 @@
     "e2e:prepare": "corepack pnpm --filter @polyroutine/contracts build && corepack pnpm --filter @polyroutine/db build && corepack pnpm --filter @polyroutine/testing build && corepack pnpm --filter @polyroutine/server build && next build",
     "react:doctor": "react-doctor --json",
     "start": "next start",
+    "test:unit": "corepack pnpm --workspace-root exec vitest run --config apps/web/vitest.config.ts",
     "test:e2e": "node scripts/run-e2e.mjs",
     "typecheck": "tsc --noEmit"
   },
