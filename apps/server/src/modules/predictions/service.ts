@@ -1,5 +1,6 @@
 import type { Clock, UuidFactory } from "@polyroutine/contracts"
 import type { DatabaseHandle } from "@polyroutine/db"
+import { recordPredictionAnalytics } from "./analytics.js"
 import {
   type FeedCard,
   type PredictionChoice,
@@ -7,6 +8,12 @@ import {
   PredictionServiceError,
   type PredictionView,
 } from "./contract.js"
+import {
+  findPredictionByBusinessKey,
+  predictionReplayOrConflict,
+  predictionServiceError,
+  toPredictionView,
+} from "./records.js"
 
 const FEED_SIZE = 5
 const REFRESH_INTERVAL_MILLISECONDS = 5 * 60 * 1_000
@@ -24,15 +31,6 @@ type FeedRow = {
   readonly evidence_deadline_at: Date
   readonly id: string
   readonly prediction_cutoff_at: Date
-}
-
-type PredictionRow = {
-  readonly business_key: string
-  readonly choice: PredictionChoice
-  readonly created_at: Date
-  readonly goal_id: string
-  readonly id: string
-  readonly predictor_subject_key: string
 }
 
 type ExposureRow = {
@@ -54,90 +52,61 @@ function exposureBusinessKey(subjectKey: string, idempotencyKey: string): string
   return `exposure:${subjectKey}:${idempotencyKey}`
 }
 
-function toPredictionView(row: PredictionRow): PredictionView {
-  return {
-    choice: row.choice,
-    goalId: row.goal_id,
-    predictionId: row.id,
-    submittedAt: row.created_at.toISOString(),
-  }
-}
-
-async function findPredictionByBusinessKey(
-  client: DatabaseHandle["pool"],
-  businessKey: string,
-): Promise<PredictionRow | undefined> {
-  const result = await client.query<PredictionRow>(
-    `select id::text, goal_id::text, predictor_subject_key, choice, business_key, created_at
-     from predictions where business_key = $1`,
-    [businessKey],
-  )
-  return result.rows[0]
-}
-
-function replayOrConflict(
-  row: PredictionRow,
-  subjectKey: string,
-  goalId: string,
-  choice: PredictionChoice,
-): { readonly replayed: true; readonly prediction: PredictionView } {
-  if (row.predictor_subject_key === subjectKey && row.goal_id === goalId && row.choice === choice) {
-    return { prediction: toPredictionView(row), replayed: true }
-  }
-  throw new PredictionServiceError("PREDICTION_IMMUTABLE", 409, true)
-}
-
-function mapDatabaseError(error: unknown): PredictionServiceError | null {
-  if (!(error instanceof Error)) return null
-  switch (error.message) {
-    case "PR_GOAL_NOT_FOUND":
-      return new PredictionServiceError("GOAL_NOT_FOUND", 404, true)
-    case "PR_SELF_PREDICTION":
-      return new PredictionServiceError("SELF_PREDICTION", 409, true)
-    case "PR_PREDICTION_CUTOFF":
-      return new PredictionServiceError("PREDICTION_CLOSED", 409, true)
-    case "PR_DUPLICATE_PREDICTION":
-    case "PR_DUPLICATE_BUSINESS_KEY":
-      return new PredictionServiceError("PREDICTION_IMMUTABLE", 409, true)
-    default:
-      return null
-  }
-}
-
 export function createPredictionService(options: PredictionServiceOptions) {
   return {
     expose: async (subjectKey: string, goalId: string, idempotencyKey: string) => {
       const businessKey = exposureBusinessKey(subjectKey, idempotencyKey)
-      const result = await options.database.pool.query<ExposureRow>(
-        `insert into feed_exposures(id, goal_id, viewer_subject_key, business_key)
-         select $1, g.id, $2, $3
-         from goals g
-         where g.id = $4 and g.owner_subject_key <> $2 and g.state = 'prediction_open'
-           and g.prediction_cutoff_at > clock_timestamp()
-           and not exists (
-             select 1 from predictions p
-             where p.goal_id = g.id and p.predictor_subject_key = $2
-           )
-         on conflict (business_key) do nothing
-         returning id::text, goal_id::text, viewer_subject_key, exposed_at`,
-        [options.uuid.create(), subjectKey, businessKey, goalId],
-      )
-      const created = result.rows[0]
-      if (created !== undefined) return { created: true as const, exposure: created }
-      const existing = await options.database.pool.query<ExposureRow>(
-        `select id::text, goal_id::text, viewer_subject_key, exposed_at
-         from feed_exposures where business_key = $1`,
-        [businessKey],
-      )
-      const replay = existing.rows[0]
-      if (
-        replay !== undefined &&
-        replay.goal_id === goalId &&
-        replay.viewer_subject_key === subjectKey
-      ) {
-        return { created: false as const, exposure: replay }
+      const now = options.clock.now()
+      const client = await options.database.pool.connect()
+      await client.query("begin")
+      try {
+        const result = await client.query<ExposureRow>(
+          `insert into feed_exposures(id, goal_id, viewer_subject_key, business_key)
+           select $1, g.id, $2, $3
+           from goals g
+           where g.id = $4 and g.owner_subject_key <> $2 and g.state = 'prediction_open'
+             and g.prediction_cutoff_at > clock_timestamp()
+             and not exists (
+               select 1 from predictions p
+               where p.goal_id = g.id and p.predictor_subject_key = $2
+             )
+           on conflict (business_key) do nothing
+           returning id::text, goal_id::text, viewer_subject_key, exposed_at`,
+          [options.uuid.create(), subjectKey, businessKey, goalId],
+        )
+        const created = result.rows[0]
+        if (created !== undefined) {
+          await recordPredictionAnalytics(client, {
+            actorSubjectKey: subjectKey,
+            businessKey: `prediction-exposed:${created.id}`,
+            goalId,
+            kind: "exposed",
+            occurredAt: now,
+          })
+          await client.query("commit")
+          return { created: true as const, exposure: created }
+        }
+        const existing = await client.query<ExposureRow>(
+          `select id::text, goal_id::text, viewer_subject_key, exposed_at
+           from feed_exposures where business_key = $1`,
+          [businessKey],
+        )
+        const replay = existing.rows[0]
+        if (
+          replay !== undefined &&
+          replay.goal_id === goalId &&
+          replay.viewer_subject_key === subjectKey
+        ) {
+          await client.query("commit")
+          return { created: false as const, exposure: replay }
+        }
+        throw new PredictionServiceError("EXPOSURE_CONFLICT", 409, true)
+      } catch (error) {
+        await client.query("rollback")
+        throw error
+      } finally {
+        client.release()
       }
-      throw new PredictionServiceError("EXPOSURE_CONFLICT", 409, true)
     },
 
     feed: async (subjectKey: string): Promise<PredictionFeed> => {
@@ -171,6 +140,15 @@ export function createPredictionService(options: PredictionServiceOptions) {
           version: 1,
         },
       }))
+      for (const card of cards) {
+        await recordPredictionAnalytics(options.database.pool, {
+          actorSubjectKey: subjectKey,
+          businessKey: `goal-listed:${subjectKey}:${card.goalId}:${options.uuid.create()}`,
+          goalId: card.goalId,
+          kind: "listed",
+          occurredAt: now,
+        })
+      }
       if (cards.length === FEED_SIZE) return { cards, shortage: null }
 
       const nextRefreshAt = new Date(now.getTime() + REFRESH_INTERVAL_MILLISECONDS).toISOString()
@@ -180,16 +158,13 @@ export function createPredictionService(options: PredictionServiceOptions) {
         requested: 5 as const,
         returned: cards.length,
       }
-      await options.database.pool.query(
-        `insert into analytics_events(id, event_name, business_key, payload, occurred_at)
-         values ($1, 'prediction_shortage_shown', $2, $3::jsonb, $4)`,
-        [
-          options.uuid.create(),
-          `prediction-shortage:${options.uuid.create()}`,
-          JSON.stringify(shortage),
-          now,
-        ],
-      )
+      await recordPredictionAnalytics(options.database.pool, {
+        actorSubjectKey: subjectKey,
+        businessKey: `prediction-shortage:${options.uuid.create()}`,
+        kind: "shortage",
+        occurredAt: now,
+        returnedCount: shortage.returned,
+      })
       return { cards, shortage }
     },
 
@@ -203,10 +178,15 @@ export function createPredictionService(options: PredictionServiceOptions) {
       | { readonly prediction: PredictionView; readonly replayed: true }
     > => {
       const businessKey = predictionBusinessKey(subjectKey, idempotencyKey)
-      const client = options.database.pool
-      const existing = await findPredictionByBusinessKey(client, businessKey)
-      if (existing !== undefined) return replayOrConflict(existing, subjectKey, goalId, choice)
+      const now = options.clock.now()
+      const client = await options.database.pool.connect()
+      await client.query("begin")
       try {
+        const existing = await findPredictionByBusinessKey(client, businessKey)
+        if (existing !== undefined) {
+          await client.query("commit")
+          return predictionReplayOrConflict(existing, subjectKey, goalId, choice)
+        }
         const inserted = await client.query<{ readonly insert_prediction: string }>(
           "select insert_prediction($1, $2, $3, $4)::text",
           [goalId, subjectKey, choice, businessKey],
@@ -215,15 +195,27 @@ export function createPredictionService(options: PredictionServiceOptions) {
         if (inserted.rows[0] === undefined || prediction === undefined) {
           throw new TypeError("prediction transaction returned no row")
         }
+        await recordPredictionAnalytics(client, {
+          actorSubjectKey: subjectKey,
+          businessKey: `prediction-submitted:${prediction.id}`,
+          choice,
+          goalId,
+          kind: "submitted",
+          occurredAt: now,
+        })
+        await client.query("commit")
         return { prediction: toPredictionView(prediction), replayed: false }
       } catch (error) {
+        await client.query("rollback")
         const racedReplay = await findPredictionByBusinessKey(client, businessKey)
         if (racedReplay !== undefined) {
-          return replayOrConflict(racedReplay, subjectKey, goalId, choice)
+          return predictionReplayOrConflict(racedReplay, subjectKey, goalId, choice)
         }
-        const mapped = mapDatabaseError(error)
+        const mapped = predictionServiceError(error)
         if (mapped !== null) throw mapped
         throw error
+      } finally {
+        client.release()
       }
     },
   }

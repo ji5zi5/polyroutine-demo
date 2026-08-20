@@ -21,8 +21,13 @@ describe("goal-lifecycle integration", () => {
   let uuidSequence = 100
 
   beforeAll(async () => {
-    postgres = await startTestPostgres()
-    database = createDatabase(postgres.connectionString)
+    const { TEST_DATABASE_URL } = process.env
+    if (TEST_DATABASE_URL === undefined) {
+      postgres = await startTestPostgres()
+      database = createDatabase(postgres.connectionString)
+    } else {
+      database = createDatabase(TEST_DATABASE_URL)
+    }
     await migrateUp(database)
     server = createServer({
       accounts: {
@@ -173,7 +178,7 @@ describe("goal-lifecycle integration", () => {
     // Then
     expect(responses.map(({ statusCode }) => statusCode)).toEqual([200, 200])
     const audits = await handle.pool.query<{ readonly count: string }>(
-      "select count(*)::text as count from analytics_events where payload->>'toState' = 'cancelled'",
+      "select count(*)::text as count from analytics_events where payload->>'terminalState' = 'cancelled'",
     )
     expect(audits.rows).toEqual([{ count: "1" }])
   })
@@ -256,15 +261,11 @@ describe("goal-lifecycle integration", () => {
 
     // Then
     const audits = await handle.pool.query<{ readonly to_state: string }>(
-      `select payload->>'toState' as to_state from analytics_events
+      `select payload->>'terminalState' as to_state from analytics_events
        where payload->>'goalId' = $1 order by occurred_at`,
       [goalId],
     )
-    expect(audits.rows.map(({ to_state }) => to_state)).toEqual([
-      "prediction_open",
-      "evidence_open",
-      "completed",
-    ])
+    expect(audits.rows.map(({ to_state }) => to_state)).toEqual(["completed"])
   })
 
   it("allows a reasoned operator cancellation after cutoff", async () => {
@@ -287,10 +288,10 @@ describe("goal-lifecycle integration", () => {
     // Then
     expect(response.statusCode).toBe(200)
     expect(response.json()).toMatchObject({ state: "cancelled" })
-    const audit = await handle.pool.query<{ readonly from_state: string }>(
-      "select payload->>'fromState' as from_state from analytics_events where business_key = $1",
-      [`goal:${goalId}:cancel:operator-cancel`],
+    const audit = await handle.pool.query<{ readonly terminal_state: string }>(
+      "select payload->>'terminalState' as terminal_state from analytics_events where business_key = $1",
+      [`goal-terminal:${goalId}:cancelled`],
     )
-    expect(audit.rows).toEqual([{ from_state: "evidence_open" }])
+    expect(audit.rows).toEqual([{ terminal_state: "cancelled" }])
   })
 })

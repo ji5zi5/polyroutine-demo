@@ -59,9 +59,9 @@ describe("evidence-ingest integration", () => {
       await harness
         .requireDatabase()
         .pool.query(
-          "select event_name from analytics_events where business_key like 'evidence:%:received'",
+          "select event_name from analytics_events where business_key like 'evidence-submitted:%'",
         ),
-    ).toMatchObject({ rows: [{ event_name: "evidence_received" }] })
+    ).toMatchObject({ rows: [{ event_name: "evidence_submitted" }] })
   })
 
   it("rejects an executable disguised as PNG without persisting it", async () => {
@@ -253,10 +253,22 @@ describe("evidence-ingest integration", () => {
     const code = await harness.challenge(goalId)
     const evidenceId = randomUUID()
     harness.uuidValues.push(evidenceId)
-    await harness.requireDatabase().pool.query(
-      `insert into analytics_events(event_name, business_key, payload)
-       values ('collision_fixture', $1, '{}')`,
-      [`evidence:${evidenceId}:received`],
+    const collisionGoalId = randomUUID()
+    const database = harness.requireDatabase()
+    await database.pool.query(
+      "insert into users(subject_key, timezone) values ('collision-owner', 'UTC')",
+    )
+    await database.pool.query(
+      `insert into goals(id, owner_subject_key, local_goal_date, recipe_id, recipe_version,
+         goal_copy, prediction_cutoff_at, evidence_deadline_at)
+       values ($1, 'collision-owner', '2026-08-20', 'study_note_photo_v1', 1, '{}',
+         '2099-01-01', '2099-01-02')`,
+      [collisionGoalId],
+    )
+    await database.pool.query(
+      `insert into evidences(id, goal_id, owner_subject_key, attempt_number, business_key, state)
+       values ($1, $2, 'collision-owner', 1, $3, 'pending')`,
+      [evidenceId, collisionGoalId, `collision:${evidenceId}`],
     )
 
     // When
@@ -265,8 +277,9 @@ describe("evidence-ingest integration", () => {
     // Then
     expect(response.statusCode).toBe(500)
     expect(harness.store.objects.size).toBe(0)
-    const database = harness.requireDatabase()
-    expect((await database.pool.query("select id from evidences")).rowCount).toBe(0)
+    expect(
+      (await database.pool.query("select id from evidences where goal_id = $1", [goalId])).rowCount,
+    ).toBe(0)
     expect((await database.pool.query("select id from verification_jobs")).rowCount).toBe(0)
     expect(await database.pool.query("select consumed_at from evidence_challenges")).toMatchObject({
       rows: [{ consumed_at: null }],
@@ -290,7 +303,7 @@ describe("evidence-ingest integration", () => {
     expect(
       (
         await database.pool.query(
-          "select id from analytics_events where business_key like 'evidence:%:received'",
+          "select id from analytics_events where business_key like 'evidence-submitted:%'",
         )
       ).rowCount,
     ).toBe(0)

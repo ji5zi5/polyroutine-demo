@@ -1,8 +1,8 @@
 import type { FastifyInstance, FastifyReply } from "fastify"
 import { z } from "zod"
+import { EvidenceServiceError } from "./errors.js"
 import { acceptedEvidenceContentTypes, decodeEvidenceImage, EvidenceImageError } from "./image.js"
 import type { EvidenceService } from "./service.js"
-import { EvidenceServiceError } from "./service.js"
 
 const MAX_UPLOAD_BYTES = 8 * 1024 * 1024
 const HTTP_BODY_LIMIT = MAX_UPLOAD_BYTES + 1

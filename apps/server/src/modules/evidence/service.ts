@@ -1,4 +1,3 @@
-import { createHash, timingSafeEqual } from "node:crypto"
 import type {
   Clock,
   EvidenceObjectKey,
@@ -7,9 +6,11 @@ import type {
 } from "@polyroutine/contracts"
 import { evidenceRecipeV1 } from "@polyroutine/contracts"
 import type { DatabaseHandle } from "@polyroutine/db"
+import { analyticsCohortContext, appendAnalyticsEvent } from "../analytics/index.js"
+import { challengeMatches, createEvidenceChallenge } from "./challenge.js"
+import { EvidenceServiceError } from "./errors.js"
+import { assertOwnedOpenGoal, type EvidenceGoalRow } from "./goal.js"
 import type { EvidenceImage } from "./image.js"
-
-const CHALLENGE_PREFIX = "PR-"
 
 type EvidenceServiceOptions = {
   readonly clock: Clock
@@ -18,72 +19,11 @@ type EvidenceServiceOptions = {
   readonly uuid: UuidFactory
 }
 
-type GoalRow = {
-  readonly evidence_deadline_at: Date
-  readonly id: string
-  readonly owner_subject_key: string
-  readonly recipe_id: string
-  readonly recipe_version: number
-  readonly state: string
-}
-
 type ChallengeRow = {
   readonly challenge_hash: string
   readonly consumed_at: Date | null
   readonly expires_at: Date
   readonly id: string
-}
-
-export class EvidenceServiceError extends Error {
-  override readonly name = "EvidenceServiceError"
-
-  constructor(
-    readonly code:
-      | "CHALLENGE_EXPIRED"
-      | "CHALLENGE_INVALID"
-      | "CHALLENGE_REQUIRED"
-      | "EVIDENCE_ATTEMPTS_EXHAUSTED"
-      | "EVIDENCE_DEADLINE"
-      | "EVIDENCE_NOT_OPEN"
-      | "GOAL_NOT_FOUND"
-      | "IDEMPOTENCY_CONFLICT"
-      | "QUARANTINE_CLEANUP_FAILED"
-      | "QUARANTINE_UNAVAILABLE",
-    readonly statusCode: 404 | 409 | 503,
-  ) {
-    super(code)
-  }
-}
-
-function challengeHash(code: string): string {
-  return createHash("sha256").update(code, "utf8").digest("hex")
-}
-
-function challengeMatches(expectedHash: string, code: string): boolean {
-  const actual = Buffer.from(challengeHash(code), "hex")
-  const expected = Buffer.from(expectedHash, "hex")
-  return actual.length === expected.length && timingSafeEqual(actual, expected)
-}
-
-function createChallengeCode(uuid: string): string {
-  return `${CHALLENGE_PREFIX}${uuid.replaceAll("-", "").slice(0, 8).toUpperCase()}`
-}
-
-function assertOwnedOpenGoal(goal: GoalRow | undefined, subjectKey: string, now: Date): GoalRow {
-  if (goal === undefined || goal.owner_subject_key !== subjectKey) {
-    throw new EvidenceServiceError("GOAL_NOT_FOUND", 404)
-  }
-  if (
-    goal.state !== "evidence_open" ||
-    goal.recipe_id !== evidenceRecipeV1.id ||
-    goal.recipe_version !== evidenceRecipeV1.version
-  ) {
-    throw new EvidenceServiceError("EVIDENCE_NOT_OPEN", 409)
-  }
-  if (now >= goal.evidence_deadline_at) {
-    throw new EvidenceServiceError("EVIDENCE_DEADLINE", 409)
-  }
-  return goal
 }
 
 async function deleteFailedObject(
@@ -119,58 +59,8 @@ export function createEvidenceService(options: EvidenceServiceOptions) {
       )
     },
 
-    challenge: async (subjectKey: string, goalId: string) => {
-      const now = options.clock.now()
-      const expiresAt = new Date(
-        now.getTime() + evidenceRecipeV1.capture.challengeExpiresInSeconds * 1_000,
-      )
-      const challengeId = options.uuid.create()
-      const code = createChallengeCode(options.uuid.create())
-      const client = await options.database.pool.connect()
-      await client.query("begin")
-      try {
-        const goalResult = await client.query<GoalRow>(
-          `select id::text, owner_subject_key, recipe_id, recipe_version, state, evidence_deadline_at
-           from goals where id = $1 for update`,
-          [goalId],
-        )
-        assertOwnedOpenGoal(goalResult.rows[0], subjectKey, now)
-        const attempts = await client.query<{ readonly next_attempt: number }>(
-          "select count(*)::integer + 1 as next_attempt from evidences where goal_id = $1",
-          [goalId],
-        )
-        const attemptNumber = attempts.rows[0]?.next_attempt ?? 1
-        if (attemptNumber > 2) {
-          throw new EvidenceServiceError("EVIDENCE_ATTEMPTS_EXHAUSTED", 409)
-        }
-        await client.query(
-          `insert into evidence_challenges(
-             id, goal_id, owner_subject_key, attempt_number, challenge_hash, expires_at, signal_kind
-           ) values ($1, $2, $3, $4, $5, $6, 'replay_reduction_only')
-           on conflict (goal_id, attempt_number) do update set
-             id = excluded.id,
-             owner_subject_key = excluded.owner_subject_key,
-             challenge_hash = excluded.challenge_hash,
-             expires_at = excluded.expires_at,
-             consumed_at = null,
-             signal_kind = excluded.signal_kind`,
-          [challengeId, goalId, subjectKey, attemptNumber, challengeHash(code), expiresAt],
-        )
-        await client.query("commit")
-        return {
-          challengeId,
-          claim: evidenceRecipeV1.capture.claim,
-          code,
-          expiresAt: expiresAt.toISOString(),
-          instructions: evidenceRecipeV1.instructions,
-        }
-      } catch (error) {
-        await client.query("rollback")
-        throw error
-      } finally {
-        client.release()
-      }
-    },
+    challenge: async (subjectKey: string, goalId: string) =>
+      createEvidenceChallenge(options, subjectKey, goalId),
 
     submit: async (
       subjectKey: string,
@@ -190,7 +80,7 @@ export function createEvidenceService(options: EvidenceServiceOptions) {
       let objectPut = false
       await client.query("begin")
       try {
-        const goalResult = await client.query<GoalRow>(
+        const goalResult = await client.query<EvidenceGoalRow>(
           `select id::text, owner_subject_key, recipe_id, recipe_version, state, evidence_deadline_at
            from goals where id = $1 for update`,
           [goalId],
@@ -297,22 +187,20 @@ export function createEvidenceService(options: EvidenceServiceOptions) {
            values ($1, $2, $3, 'quarantined', 'awaiting_bounded_operator_review', $4)`,
           [options.uuid.create(), evidenceId, goalId, now],
         )
-        await client.query(
-          `insert into analytics_events(id, event_name, business_key, payload, occurred_at)
-           values ($1, 'evidence_received', $2, $3::jsonb, $4)`,
-          [
-            options.uuid.create(),
-            `evidence:${evidenceId}:received`,
-            JSON.stringify({
-              attemptNumber,
-              goalId,
-              receiptId: evidenceId,
-              recipeId: evidenceRecipeV1.id,
-              recipeVersion: evidenceRecipeV1.version,
-            }),
-            now,
-          ],
-        )
+        const cohort = await analyticsCohortContext(client, subjectKey, now)
+        await appendAnalyticsEvent(client, {
+          businessKey: `evidence-submitted:${evidenceId}`,
+          event: {
+            ...cohort,
+            attemptNumber,
+            eventName: "evidence_submitted",
+            eventVersion: 1,
+            goalId,
+            recipeId: evidenceRecipeV1.id,
+            recipeVersion: evidenceRecipeV1.version,
+          },
+          occurredAt: now,
+        })
         await client.query("update evidence_challenges set consumed_at = $1 where id = $2", [
           now,
           challenge.id,

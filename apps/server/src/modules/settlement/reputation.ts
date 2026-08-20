@@ -1,5 +1,6 @@
 import type { GoalState, TerminalGoalState } from "@polyroutine/contracts"
 import type { DatabaseHandle } from "@polyroutine/db"
+import { analyticsCohortContext, appendAnalyticsEvent } from "../analytics/index.js"
 
 export type SettlementClient = Pick<DatabaseHandle["pool"], "query">
 
@@ -23,6 +24,7 @@ type TerminalCommand = {
   readonly client: SettlementClient
   readonly goalId: string
   readonly now: Date
+  readonly reasonCode: string
   readonly state: TerminalGoalState
 }
 
@@ -89,7 +91,8 @@ export async function settleTerminalGoal(command: TerminalCommand): Promise<bool
     command.state,
     command.goalId,
   ])
-  const reputation = reputationFor(command.state, await crowdCounts(command.client, command.goalId))
+  const crowd = await crowdCounts(command.client, command.goalId)
+  const reputation = reputationFor(command.state, crowd)
   if (reputation.completion !== 0) {
     await command.client.query(
       `insert into reputation_events(subject_key, business_key, event_kind, points)
@@ -104,19 +107,40 @@ export async function settleTerminalGoal(command: TerminalCommand): Promise<bool
       [goal.owner_subject_key, `goal:${command.goalId}:crowd:v1`, reputation.crowd],
     )
   }
-  await command.client.query(
-    `insert into analytics_events(event_name, business_key, payload, occurred_at)
-     values ('goal_terminal', $1, $2::jsonb, $3)`,
-    [
-      `goal:${command.goalId}:terminal:v1`,
-      JSON.stringify({
-        actor: command.actor,
-        fromState: "evidence_open",
+  const cohort = await analyticsCohortContext(command.client, goal.owner_subject_key, command.now)
+  const quorumCount = crowd.no + crowd.yes
+  await appendAnalyticsEvent(command.client, {
+    businessKey: `goal:${command.goalId}:terminal:v1`,
+    event: {
+      ...cohort,
+      eventName: "goal_terminal",
+      eventVersion: 1,
+      goalId: command.goalId,
+      quorumCount,
+      reasonCode: command.reasonCode,
+      recipeId: "study_note_photo_v1",
+      recipeVersion: 1,
+      terminalState: command.state,
+    },
+    occurredAt: command.now,
+  })
+  const points = reputation.completion + reputation.crowd
+  if (points !== 0) {
+    await appendAnalyticsEvent(command.client, {
+      businessKey: `goal:${command.goalId}:reputation:v1`,
+      event: {
+        ...cohort,
+        eventKind: "award",
+        eventName: "reputation_event_appended",
+        eventVersion: 1,
         goalId: command.goalId,
-        toState: command.state,
-      }),
-      command.now,
-    ],
-  )
+        points,
+        quorumCount,
+        recipeId: "study_note_photo_v1",
+        recipeVersion: 1,
+      },
+      occurredAt: command.now,
+    })
+  }
   return true
 }

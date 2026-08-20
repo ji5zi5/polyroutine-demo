@@ -20,24 +20,14 @@ create table operator_reviews (
 );
 create index operator_reviews_claim_idx on operator_reviews(state, created_at, id);
 
-create table evidence_verdict_events (
-  id uuid primary key default gen_random_uuid(),
-  evidence_id uuid not null references evidences(id),
-  review_id uuid not null references operator_reviews(id),
-  operator_subject_key text not null,
-  verdict text not null check (verdict in ('accepted', 'rejected', 'inconclusive')),
-  reason_code text,
-  terminal_state text check (terminal_state in ('completed', 'failed', 'expired', 'cancelled')),
-  business_key text not null unique,
-  resolved_at timestamptz not null,
-  check ((verdict = 'accepted' and reason_code is null) or
-    (verdict = 'rejected' and reason_code in
-      ('recipe_mismatch', 'challenge_not_visible', 'notes_insufficient')) or
-    (verdict = 'inconclusive' and reason_code in
-      ('image_unreadable', 'review_unavailable')))
-);
-create unique index evidence_verdict_events_evidence_idx
-  on evidence_verdict_events(evidence_id);
-create trigger evidence_verdict_events_append_only
-before update or delete on evidence_verdict_events
-for each row execute function reject_event_mutation();
+alter table evidence_verdict_events
+  alter column id set default gen_random_uuid(),
+  alter column event_kind drop not null,
+  alter column reason drop not null,
+  alter column created_at drop not null,
+  add column review_id uuid unique references operator_reviews(id),
+  add column reason_code text,
+  add column terminal_state text check (
+    terminal_state in ('completed', 'failed', 'expired', 'cancelled')
+  ),
+  add column resolved_at timestamptz;

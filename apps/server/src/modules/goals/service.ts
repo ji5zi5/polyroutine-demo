@@ -1,5 +1,6 @@
 import type { Clock, UuidFactory } from "@polyroutine/contracts"
 import type { DatabaseHandle } from "@polyroutine/db"
+import { analyticsCohortContext, appendAnalyticsEvent } from "../analytics/index.js"
 import { type CancelCommand, cancelGoal } from "./cancellation.js"
 import { GoalServiceError, type GoalView, type GuidedGoalFields } from "./contract.js"
 import { findOwnedGoal, type GoalRow, toGoalView } from "./records.js"
@@ -66,20 +67,29 @@ export function createGoalService(options: GoalServiceOptions): GoalService {
         if (row === undefined) {
           throw new GoalServiceError("DAILY_GOAL_EXISTS", 409, "daily goal already exists")
         }
-        await client.query(
-          `insert into analytics_events(event_name, business_key, payload, occurred_at)
-           values ('goal_transitioned', $1, $2::jsonb, $3)`,
-          [
-            `goal:${id}:state:prediction_open`,
-            JSON.stringify({
-              actor: "owner",
-              fromState: null,
-              goalId: id,
-              toState: "prediction_open",
-            }),
-            now,
-          ],
+        const priorTerminalGoal = await client.query<{ readonly exists: boolean }>(
+          `select exists(
+             select 1 from goals
+             where owner_subject_key = $1 and local_goal_date = $2::date - 1
+               and state in ('completed', 'failed', 'expired', 'cancelled')
+           )`,
+          [subjectKey, row.local_goal_date],
         )
+        if (priorTerminalGoal.rows[0]?.exists === true) {
+          const cohort = await analyticsCohortContext(client, subjectKey, now)
+          await appendAnalyticsEvent(client, {
+            businessKey: `next-day-goal-created:${id}`,
+            event: {
+              ...cohort,
+              eventName: "next_day_goal_created",
+              eventVersion: 1,
+              goalId: id,
+              recipeId: "study_note_photo_v1",
+              recipeVersion: 1,
+            },
+            occurredAt: now,
+          })
+        }
         await client.query("commit")
         return toGoalView(row)
       } catch (error) {

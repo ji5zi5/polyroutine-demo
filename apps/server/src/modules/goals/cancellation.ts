@@ -1,5 +1,6 @@
 import type { Clock } from "@polyroutine/contracts"
 import type { DatabaseHandle } from "@polyroutine/db"
+import { analyticsCohortContext, appendAnalyticsEvent } from "../analytics/index.js"
 import type { CancelGoalInput, GoalView } from "./contract.js"
 import { GoalServiceError } from "./contract.js"
 import { type DatabaseClient, findOwnedGoal, type GoalRow, toGoalView } from "./records.js"
@@ -42,14 +43,15 @@ function cancellationPolicy(input: CancelGoalInput): CancellationPolicy {
 
 async function cancellationReplay(
   client: DatabaseClient,
-  businessKey: string,
+  goalId: string,
 ): Promise<GoalRow | undefined> {
   const result = await client.query<GoalRow>(
     `select g.id::text, g.owner_subject_key, g.local_goal_date::text, g.recipe_id,
        g.recipe_version, g.goal_copy, g.prediction_cutoff_at, g.evidence_deadline_at, g.state
      from analytics_events a join goals g on g.id::text = a.payload->>'goalId'
-     where a.business_key = $1`,
-    [businessKey],
+     where a.event_name = 'goal_terminal' and a.payload->>'goalId' = $1
+       and a.payload->>'terminalState' = 'cancelled'`,
+    [goalId],
   )
   return result.rows[0]
 }
@@ -59,11 +61,10 @@ export async function cancelGoal(
   command: CancelCommand,
 ): Promise<GoalView> {
   const now = dependencies.clock.now()
-  const businessKey = `goal:${command.goalId}:cancel:${command.idempotencyKey}`
   const client = await dependencies.database.pool.connect()
   await client.query("begin")
   try {
-    const replayed = await cancellationReplay(client, businessKey)
+    const replayed = await cancellationReplay(client, command.goalId)
     if (replayed !== undefined) {
       await client.query("commit")
       return toGoalView(replayed)
@@ -87,7 +88,7 @@ export async function cancelGoal(
     )
     const row = result.rows[0]
     if (row === undefined) {
-      const concurrentReplay = await cancellationReplay(client, businessKey)
+      const concurrentReplay = await cancellationReplay(client, command.goalId)
       if (concurrentReplay !== undefined) {
         await client.query("commit")
         return toGoalView(concurrentReplay)
@@ -95,21 +96,26 @@ export async function cancelGoal(
       await findOwnedGoal(dependencies.database, command.subjectKey, command.goalId)
       throw new GoalServiceError("GOAL_IMMUTABLE", 409, "goal can no longer be cancelled")
     }
-    await client.query(
-      `insert into analytics_events(event_name, business_key, payload, occurred_at)
-       values ('goal_transitioned', $1, $2::jsonb, $3)`,
-      [
-        businessKey,
-        JSON.stringify({
-          actor: command.input.actor,
-          fromState: row.previous_state,
-          goalId: command.goalId,
-          reason: policy.reason,
-          toState: "cancelled",
-        }),
-        now,
-      ],
+    const quorum = await client.query<{ readonly count: string }>(
+      "select count(*)::text as count from predictions where goal_id = $1",
+      [command.goalId],
     )
+    const cohort = await analyticsCohortContext(client, row.owner_subject_key, now)
+    await appendAnalyticsEvent(client, {
+      businessKey: `goal-terminal:${command.goalId}:cancelled`,
+      event: {
+        ...cohort,
+        eventName: "goal_terminal",
+        eventVersion: 1,
+        goalId: command.goalId,
+        quorumCount: Number(quorum.rows[0]?.count ?? "0"),
+        reasonCode: command.input.actor === "owner" ? "owner_cancelled" : "operator_cancelled",
+        recipeId: "study_note_photo_v1",
+        recipeVersion: 1,
+        terminalState: "cancelled",
+      },
+      occurredAt: now,
+    })
     await client.query("commit")
     return toGoalView(row)
   } catch (error) {

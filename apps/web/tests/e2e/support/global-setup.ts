@@ -27,7 +27,6 @@ async function globalSetup(): Promise<() => Promise<void>> {
     clock: { now: () => new Date(serverTime) },
     database,
     evidenceObjectStore: { delete: async () => undefined, put: async () => undefined },
-    evidenceVerifier: { review: async () => ({ kind: "operator_review_required" }) },
     uuid: { create: randomUUID },
   })
 

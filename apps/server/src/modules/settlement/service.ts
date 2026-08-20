@@ -1,5 +1,6 @@
 import type { Clock, GoalState, TerminalGoalState } from "@polyroutine/contracts"
 import type { DatabaseHandle } from "@polyroutine/db"
+import { analyticsCohortContext, appendAnalyticsEvent } from "../analytics/index.js"
 import { crowdCounts, reputationFor, type SettlementClient } from "./reputation.js"
 
 type SettlementServiceOptions = {
@@ -166,19 +167,21 @@ export function createSettlementService(options: SettlementServiceOptions) {
           referenceBusinessKey: `goal:${command.goalId}:crowd:v1`,
           subjectKey: goal.owner_subject_key,
         })
-        await client.query(
-          `insert into analytics_events(event_name, business_key, payload, occurred_at)
-           values ('goal_corrected', $1, $2::jsonb, $3)`,
-          [
-            `${businessKey}:event:v1`,
-            JSON.stringify({
-              correctedState: command.correctedState,
-              goalId: command.goalId,
-              previousState,
-            }),
-            now,
-          ],
-        )
+        await appendAnalyticsEvent(client, {
+          businessKey: `${businessKey}:event:v1`,
+          event: {
+            ...(await analyticsCohortContext(client, goal.owner_subject_key, now)),
+            eventKind: "correction",
+            eventName: "reputation_event_appended",
+            eventVersion: 1,
+            goalId: command.goalId,
+            points: corrected.completion - previous.completion + corrected.crowd - previous.crowd,
+            quorumCount: crowd.no + crowd.yes,
+            recipeId: "study_note_photo_v1",
+            recipeVersion: 1,
+          },
+          occurredAt: now,
+        })
         const total = await reputationTotal(client, goal.owner_subject_key)
         await client.query("commit")
         return {

@@ -38,11 +38,9 @@ switch (mode) {
     const targets =
       filter === "settlement"
         ? ["settlement.integration.test.ts", "settlement-failures.integration.test.ts"]
-        : [
-            filter === undefined
-              ? "apps/server/test"
-              : `apps/server/test/${filter}.integration.test.ts`,
-          ]
+        : filter === "funnel-events"
+          ? ["funnel-events.integration.test.ts", "analytics-nonblocking.integration.test.ts"]
+          : [filter === undefined ? "apps/server/test" : `${filter}.integration.test.ts`]
     for (const target of targets) {
       run(process.execPath, [
         packageManagerPath,

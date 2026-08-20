@@ -143,6 +143,7 @@ export async function claimReview(
           client,
           goalId: review.goal_id,
           now,
+          reasonCode: "operator_review_exhausted",
           state: "expired",
         })
       }

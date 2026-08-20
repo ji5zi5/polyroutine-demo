@@ -1,5 +1,10 @@
 import type { TerminalGoalState } from "@polyroutine/contracts"
-import { SettlementConflictError, settleTerminalGoal } from "../../settlement/reputation.js"
+import { analyticsCohortContext, appendAnalyticsEvent } from "../../analytics/index.js"
+import {
+  crowdCounts,
+  SettlementConflictError,
+  settleTerminalGoal,
+} from "../../settlement/reputation.js"
 import type { OperatorDecision } from "./contract.js"
 import { VerificationServiceError } from "./errors.js"
 import {
@@ -122,6 +127,7 @@ export async function decideReview(
           client,
           goalId: review.goal_id,
           now,
+          reasonCode: decisionReason(command.decision) ?? "accepted_evidence",
           state: terminalState,
         })
       } catch (error) {
@@ -147,20 +153,25 @@ export async function decideReview(
         now,
       ],
     )
-    await client.query(
-      `insert into analytics_events(event_name, business_key, payload, occurred_at)
-       values ('verdict_resolved', $1, $2::jsonb, $3)`,
-      [
-        `evidence:${review.evidence_id}:verdict:v1`,
-        JSON.stringify({
-          evidenceId: review.evidence_id,
-          goalId: review.goal_id,
-          terminalState,
-          verdict: command.decision.verdict,
-        }),
-        now,
-      ],
-    )
+    const cohort = await analyticsCohortContext(client, review.owner_subject_key, now)
+    const crowd = await crowdCounts(client, review.goal_id)
+    await appendAnalyticsEvent(client, {
+      businessKey: `evidence:${review.evidence_id}:verdict:v1`,
+      event: {
+        ...cohort,
+        eventName: "verdict_resolved",
+        eventVersion: 1,
+        goalId: review.goal_id,
+        providerModel: "bounded-operator-review",
+        providerVersion: "v1",
+        quorumCount: crowd.no + crowd.yes,
+        reasonCode: decisionReason(command.decision) ?? "accepted_evidence",
+        recipeId: "study_note_photo_v1",
+        recipeVersion: 1,
+        verdict: command.decision.verdict,
+      },
+      occurredAt: now,
+    })
     await client.query(
       `update operator_reviews set state = 'decided', leased_by = null, lease_token = null,
          lease_expires_at = null, decided_at = $1 where id = $2`,

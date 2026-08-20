@@ -77,8 +77,13 @@ export class EvidenceHarness {
   constructor(private readonly moderationOptions: ModerationHarnessOptions = {}) {}
 
   async start(): Promise<void> {
-    this.postgres = await startTestPostgres()
-    this.database = createDatabase(this.postgres.connectionString)
+    const { TEST_DATABASE_URL } = process.env
+    if (TEST_DATABASE_URL === undefined) {
+      this.postgres = await startTestPostgres()
+      this.database = createDatabase(this.postgres.connectionString)
+    } else {
+      this.database = createDatabase(TEST_DATABASE_URL)
+    }
     await migrateUp(this.database)
     this.server = createServer({
       clock: { now: () => new Date(this.now) },

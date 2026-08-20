@@ -31,8 +31,13 @@ describe("atomic prediction insert races", () => {
   let server: FastifyInstance | undefined
 
   beforeAll(async () => {
-    postgres = await startTestPostgres()
-    database = createDatabase(postgres.connectionString)
+    const { TEST_DATABASE_URL } = process.env
+    if (TEST_DATABASE_URL === undefined) {
+      postgres = await startTestPostgres()
+      database = createDatabase(postgres.connectionString)
+    } else {
+      database = createDatabase(TEST_DATABASE_URL)
+    }
     await migrateUp(database)
     server = createServer({
       clock: { now: () => new Date("2026-08-19T09:00:00.000Z") },
@@ -78,7 +83,12 @@ describe("atomic prediction insert races", () => {
 
     // Then
     expect(responses.filter(({ statusCode }) => statusCode === 201)).toHaveLength(1)
-    expect(responses.filter(({ statusCode }) => statusCode === 409)).toHaveLength(99)
+    expect(
+      responses.filter(({ statusCode }) => statusCode === 409),
+      JSON.stringify([
+        ...new Set(responses.map(({ body, statusCode }) => `${statusCode}:${body}`)),
+      ]),
+    ).toHaveLength(99)
     expect(
       responses
         .filter(({ statusCode }) => statusCode === 409)
@@ -130,7 +140,12 @@ describe("atomic prediction insert races", () => {
     )
 
     // Then
-    expect(responses.every(({ statusCode }) => statusCode === 409)).toBe(true)
+    expect(
+      responses.every(({ statusCode }) => statusCode === 409),
+      JSON.stringify([
+        ...new Set(responses.map(({ body, statusCode }) => `${statusCode}:${body}`)),
+      ]),
+    ).toBe(true)
     expect(responses.every(({ json }) => json().code === "PREDICTION_CLOSED")).toBe(true)
     const count = await handle.pool.query<{ readonly count: string }>(
       "select count(*)::text as count from predictions",

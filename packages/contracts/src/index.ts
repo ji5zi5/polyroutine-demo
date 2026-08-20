@@ -1,3 +1,4 @@
+export * from "./analytics/events.js"
 export * from "./domain/index.js"
 export * from "./evidence/recipe-v1.js"
 
