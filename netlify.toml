@@ -1,0 +1,13 @@
+[build]
+command = "corepack pnpm --filter @polyroutine/web build"
+publish = "apps/web/.next"
+
+[build.environment]
+NODE_VERSION = "24"
+PNPM_VERSION = "10.34.5"
+
+[[redirects]]
+from = "/"
+to = "/demo"
+status = 302
+force = true
