@@ -1,17 +1,25 @@
+import path from "node:path"
 import { defineConfig } from "@playwright/test"
 
 export default defineConfig({
   expect: { timeout: 5_000 },
   fullyParallel: false,
+  globalSetup: "./tests/e2e/support/global-setup.ts",
+  outputDir: path.resolve(import.meta.dirname, "../../.omo/evidence/task-7/playwright"),
   reporter: "line",
-  testDir: "./e2e",
+  testDir: ".",
+  testMatch: ["e2e/**/*.spec.ts", "tests/e2e/**/*.spec.ts"],
   use: {
     baseURL: "http://127.0.0.1:3100",
     channel: "chrome",
-    trace: "retain-on-failure",
+    trace: "on",
   },
   webServer: {
     command: "corepack pnpm start --port 3100",
+    env: {
+      POLYROUTINE_API_ORIGIN: "http://127.0.0.1:3101",
+      POLYROUTINE_PUBLIC_ORIGIN: "http://127.0.0.1:3100",
+    },
     reuseExistingServer: false,
     stderr: "pipe",
     stdout: "pipe",

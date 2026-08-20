@@ -1,0 +1,125 @@
+.authShell {
+  align-items: center;
+  display: grid;
+  gap: var(--space-8);
+  grid-template-columns: minmax(0, var(--auth-copy-track)) minmax(0, var(--auth-form-track));
+  margin-inline: auto;
+  max-inline-size: var(--measure-wide);
+  min-block-size: 100dvh;
+  padding: clamp(var(--space-6), var(--section-fluid), var(--space-16))
+    clamp(var(--space-4), var(--gutter-fluid), var(--space-8));
+}
+
+.authIntro,
+.authPanel {
+  border: var(--border-width) solid var(--border-default);
+  border-radius: var(--radius-panel);
+  padding: clamp(var(--space-6), var(--gutter-fluid), var(--space-12));
+}
+
+.authIntro {
+  background: linear-gradient(
+    var(--auth-gradient-angle),
+    var(--surface-secondary),
+    var(--accent-soft)
+  );
+  box-shadow: var(--shadow-panel);
+  min-block-size: min(var(--auth-panel-fluid), var(--auth-panel-max));
+  place-content: center;
+}
+
+.authIntro h1 {
+  max-inline-size: var(--auth-heading-measure);
+}
+
+.authPanel {
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-panel);
+  display: grid;
+  gap: var(--space-6);
+}
+
+.adultNotice {
+  background: var(--surface-elevated);
+  border-inline-start: var(--focus-width) solid var(--accent-primary);
+  color: var(--text-secondary);
+  padding: var(--space-4);
+}
+
+.routineShell {
+  display: grid;
+  gap: var(--space-8);
+  margin-inline: auto;
+  max-inline-size: var(--measure-wide);
+  min-block-size: 100dvh;
+  padding: clamp(var(--space-6), var(--section-fluid), var(--space-16))
+    clamp(var(--space-4), var(--gutter-fluid), var(--space-8));
+}
+
+.appHeader,
+.sectionHeader {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  justify-content: space-between;
+}
+
+.appHeader {
+  border-block-end: var(--border-width) solid var(--border-default);
+  padding-block-end: var(--space-8);
+}
+
+.appHeader h1 {
+  max-inline-size: var(--auth-heading-measure);
+}
+
+.routineGrid {
+  align-items: start;
+  display: grid;
+  gap: var(--space-8);
+  grid-template-columns: minmax(0, var(--rail-width)) minmax(0, 1fr);
+}
+
+.timelineRail {
+  background: var(--surface-secondary);
+  border: var(--border-width) solid var(--border-default);
+  border-radius: var(--radius-panel);
+  padding: var(--space-6);
+  position: sticky;
+  top: var(--space-8);
+}
+
+.routineMain,
+.predictionSection {
+  display: grid;
+  gap: var(--space-6);
+  min-inline-size: 0;
+}
+
+.routineMain {
+  gap: var(--space-12);
+}
+
+.goalPanel {
+  background: var(--surface-accent);
+}
+
+.shortageRefresh {
+  justify-self: start;
+}
+
+@media (max-width: 48rem) {
+  .authShell,
+  .routineGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .authIntro {
+    min-block-size: auto;
+  }
+
+  .timelineRail {
+    position: static;
+  }
+}

@@ -1,0 +1,76 @@
+import { z } from "zod"
+
+export const sessionSchema = z.object({
+  csrfToken: z.string().min(1),
+  expiresAt: z.iso.datetime(),
+  token: z.string().min(1),
+})
+
+export const accountSchema = z.object({
+  session: sessionSchema,
+  subjectKey: z.string().min(1),
+})
+export type Account = Readonly<z.infer<typeof accountSchema>>
+
+export const goalSchema = z.object({
+  evidenceDeadlineAt: z.iso.datetime(),
+  fields: z.object({
+    noteLineTarget: z.number().int().min(3).max(20),
+    studyMinutes: z.literal(25),
+  }),
+  id: z.uuid(),
+  localGoalDate: z.string(),
+  ownerSubjectKey: z.string(),
+  predictionCutoffAt: z.iso.datetime(),
+  recipeId: z.literal("study_note_photo_v1"),
+  recipeVersion: z.literal(1),
+  state: z.enum([
+    "prediction_open",
+    "evidence_open",
+    "completed",
+    "failed",
+    "expired",
+    "cancelled",
+  ]),
+})
+export type Goal = Readonly<z.infer<typeof goalSchema>>
+
+export const todayResponseSchema = z.object({ goal: goalSchema.nullable() })
+
+export const feedCardSchema = z.object({
+  anonymousAlias: z.string(),
+  evidenceDeadlineAt: z.iso.datetime(),
+  goalId: z.uuid(),
+  predictionCutoffAt: z.iso.datetime(),
+  recipe: z.object({
+    id: z.literal("study_note_photo_v1"),
+    instructions: z.string(),
+    version: z.literal(1),
+  }),
+})
+
+export const shortageSchema = z.object({
+  nextRefreshAt: z.iso.datetime(),
+  reason: z.literal("eligible_pool_exhausted"),
+  requested: z.literal(5),
+  returned: z.number().int().min(0).max(4),
+})
+
+export const predictionFeedSchema = z.object({
+  cards: z.array(feedCardSchema).max(5),
+  shortage: shortageSchema.nullable(),
+})
+export type PredictionFeed = Readonly<z.infer<typeof predictionFeedSchema>>
+
+export const predictionSchema = z.object({
+  choice: z.enum(["yes", "no"]),
+  goalId: z.uuid(),
+  predictionId: z.uuid(),
+  submittedAt: z.iso.datetime(),
+})
+
+export const apiErrorSchema = z.object({
+  code: z.string().optional(),
+  error: z.string().optional(),
+  replacement: z.boolean().optional(),
+})

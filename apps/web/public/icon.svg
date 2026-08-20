@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title id="title">폴리루틴</title>
+  <rect width="512" height="512" rx="112" fill="#0b63ce"/>
+  <path d="M144 152h142c62 0 106 38 106 94s-44 95-106 95h-58v51h-84V152Zm84 70v49h51c18 0 29-9 29-25 0-15-11-24-29-24h-51Z" fill="#fffdf9"/>
+</svg>

@@ -2,7 +2,10 @@ import { mkdir } from "node:fs/promises"
 import path from "node:path"
 import { expect, test } from "@playwright/test"
 
-const evidenceDirectory = path.resolve(import.meta.dirname, "../../../.omo/evidence")
+const evidenceDirectory = path.resolve(
+  import.meta.dirname,
+  "../../../.omo/evidence/task-7/bootstrap",
+)
 const viewports = [
   { height: 812, name: "mobile", width: 375 },
   { height: 1024, name: "tablet", width: 768 },
@@ -18,7 +21,8 @@ for (const viewport of viewports) {
     await page.goto("/")
 
     // Then
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("오늘 할 한 가지를 분명하게")
+    await expect(page.locator("main.authShell")).toBeVisible()
+    await expect(page.locator("main.authShell form")).toBeVisible()
     const widths = await page.evaluate(() => ({
       document: document.documentElement.scrollWidth,
       viewport: document.documentElement.clientWidth,
@@ -27,7 +31,7 @@ for (const viewport of viewports) {
     await mkdir(evidenceDirectory, { recursive: true })
     await page.screenshot({
       fullPage: true,
-      path: path.join(evidenceDirectory, `task-2-web-${viewport.name}.png`),
+      path: path.join(evidenceDirectory, `${viewport.name}.png`),
     })
   })
 }

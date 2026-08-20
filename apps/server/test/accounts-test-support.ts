@@ -51,6 +51,9 @@ export const accountSignupResponseSchema = z.object({
   subjectKey: z.string(),
 })
 export const accountSessionResponseSchema = z.object({ session: accountSessionSchema })
+export const accountLoginResponseSchema = accountSessionResponseSchema.extend({
+  subjectKey: z.string(),
+})
 
 export async function sendAccountRequest(options: {
   readonly address: string

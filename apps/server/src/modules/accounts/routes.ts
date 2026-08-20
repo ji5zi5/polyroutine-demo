@@ -85,7 +85,7 @@ export function registerAccountsRoutes(
       const result = await service.login(parsed.data, request.ip)
       switch (result.kind) {
         case "authenticated":
-          return reply.status(200).send({ session: result.session })
+          return reply.status(200).send({ session: result.session, subjectKey: result.subjectKey })
         case "credentials_rejected":
           return reply.status(401).send({ error: "credentials_rejected" })
         case "rate_limited":

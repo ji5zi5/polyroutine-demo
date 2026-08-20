@@ -5,20 +5,27 @@
   "version": "0.0.0",
   "scripts": {
     "build": "next build",
-    "client:verify": "playwright test",
+    "client:verify": "node scripts/run-e2e.mjs",
     "dev": "next dev",
+    "e2e:prepare": "corepack pnpm --filter @polyroutine/contracts build && corepack pnpm --filter @polyroutine/db build && corepack pnpm --filter @polyroutine/testing build && corepack pnpm --filter @polyroutine/server build && next build",
     "react:doctor": "react-doctor --json",
     "start": "next start",
-    "test:e2e": "playwright test",
+    "test:e2e": "node scripts/run-e2e.mjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "ky": "2.0.2",
     "next": "16.3.1",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "zod": "4.4.3"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@playwright/test": "1.62.1",
+    "@polyroutine/db": "workspace:*",
+    "@polyroutine/server": "workspace:*",
+    "@polyroutine/testing": "workspace:*",
     "@types/node": "catalog:",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",

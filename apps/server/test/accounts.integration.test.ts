@@ -6,6 +6,7 @@ import { request } from "undici"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
 import type { AccountAuditEvent } from "../src/modules/accounts/index.js"
 import {
+  accountLoginResponseSchema as loginResponseSchema,
   sendAccountRequest as send,
   accountSessionResponseSchema as sessionResponseSchema,
   signupPayload,
@@ -151,6 +152,26 @@ describe("accounts boundary integration", () => {
       afterReuse.statusCode,
     ]).toEqual([403, 200, 409, 401])
     expect(auditEvents.some(({ kind }) => kind === "session_reuse_detected")).toBe(true)
+  })
+
+  it("returns the stable subject key when an adult logs in for client module access", async () => {
+    // Given
+    const signup = signupResponseSchema.parse(
+      (await send({ address, method: "POST", path: "/v1/accounts/signup", payload: signupPayload }))
+        .body,
+    )
+
+    // When
+    const response = await send({
+      address,
+      method: "POST",
+      path: "/v1/accounts/login",
+      payload: { email: signupPayload.email, password: signupPayload.password },
+    })
+
+    // Then
+    expect(response.statusCode).toBe(200)
+    expect(loginResponseSchema.parse(response.body).subjectKey).toBe(signup.subjectKey)
   })
 
   it("resets the password and revokes every prior session", async () => {

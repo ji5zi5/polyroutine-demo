@@ -1,0 +1,218 @@
+a,
+button,
+input {
+  -webkit-tap-highlight-color: transparent;
+}
+
+a,
+button {
+  touch-action: manipulation;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: var(--focus-width) solid var(--focus);
+  outline-offset: var(--space-1);
+}
+
+button,
+.actionLink,
+.quietLink {
+  align-items: center;
+  border-radius: var(--radius-control);
+  display: inline-flex;
+  font-weight: var(--weight-medium);
+  justify-content: center;
+  min-block-size: var(--target-min);
+  padding: var(--space-3) var(--space-4);
+  text-decoration: none;
+  transition:
+    background-color var(--motion-fast) var(--motion-ease),
+    border-color var(--motion-fast) var(--motion-ease),
+    color var(--motion-fast) var(--motion-ease),
+    transform var(--motion-fast) var(--motion-ease);
+  white-space: nowrap;
+}
+
+button,
+.actionLink {
+  background: var(--accent-primary);
+  border: var(--border-width) solid transparent;
+  color: var(--text-on-accent);
+}
+
+.quietLink,
+.buttonQuiet {
+  background: transparent;
+  border: var(--border-width) solid var(--border-default);
+  color: var(--text-primary);
+}
+
+button:hover:not(:disabled),
+.actionLink:hover {
+  background: var(--accent-hover);
+}
+
+.buttonQuiet:hover:not(:disabled),
+.quietLink:hover {
+  background: var(--surface-elevated);
+}
+
+button:active:not(:disabled),
+.actionLink:active,
+.quietLink:active {
+  transform: translateY(var(--press-distance));
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.buttonChoice {
+  flex: 1 1 0;
+}
+
+.buttonYes {
+  background: var(--status-success-soft);
+  border-color: var(--status-success);
+  color: var(--status-success);
+}
+
+.buttonYes:hover:not(:disabled) {
+  background: var(--status-success);
+  color: var(--surface-primary);
+}
+
+.buttonNo {
+  background: var(--status-error-soft);
+  border-color: var(--status-error);
+  color: var(--status-error);
+}
+
+.buttonNo:hover:not(:disabled) {
+  background: var(--status-error);
+  color: var(--surface-primary);
+}
+
+.buttonCluster {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.buttonFull {
+  inline-size: 100%;
+}
+
+.formField {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.formLabel {
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-caption);
+}
+
+.formInput {
+  background: var(--surface-elevated);
+  border: var(--border-width) solid var(--border-default);
+  border-radius: var(--radius-control);
+  color: var(--text-primary);
+  inline-size: 100%;
+  min-block-size: var(--target-min);
+  padding: var(--space-3) var(--space-4);
+  transition:
+    border-color var(--motion-fast) var(--motion-ease),
+    box-shadow var(--motion-fast) var(--motion-ease);
+}
+
+.formInput::placeholder {
+  color: var(--text-secondary);
+}
+
+.formInput[aria-invalid="true"] {
+  border-color: var(--status-error);
+}
+
+.formHelper,
+.formError {
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+}
+
+.formHelper {
+  color: var(--text-secondary);
+}
+
+.formError {
+  color: var(--status-error);
+}
+
+.checkboxField {
+  align-items: start;
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: var(--checkbox-size) minmax(0, 1fr);
+}
+
+.checkboxField input {
+  accent-color: var(--accent-primary);
+  block-size: var(--checkbox-size);
+  inline-size: var(--checkbox-size);
+  margin: 0;
+}
+
+.checkboxCopy {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.accountModeFieldset {
+  border: 0;
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  min-inline-size: 0;
+  padding: 0;
+}
+
+.modeSwitch {
+  background: var(--surface-secondary);
+  border: var(--border-width) solid var(--border-default);
+  border-radius: var(--radius-control);
+  display: grid;
+  gap: var(--space-1);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: var(--space-1);
+}
+
+.modeSwitch button {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+}
+
+.modeSwitch button[aria-pressed="true"] {
+  background: var(--surface-elevated);
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button,
+  .actionLink,
+  .quietLink,
+  .formInput {
+    transition: none;
+  }
+
+  button:active:not(:disabled),
+  .actionLink:active,
+  .quietLink:active {
+    transform: none;
+  }
+}

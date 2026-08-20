@@ -28,7 +28,11 @@ export type SignupResult =
   | { readonly kind: "email_conflict" }
 
 export type LoginResult =
-  | { readonly kind: "authenticated"; readonly session: SessionCredential }
+  | {
+      readonly kind: "authenticated"
+      readonly session: SessionCredential
+      readonly subjectKey: SubjectKey
+    }
   | { readonly kind: "credentials_rejected" }
   | { readonly kind: "rate_limited" }
 
@@ -104,7 +108,11 @@ export class AccountsService {
     await this.rateLimits.clear(rateKeyHash)
     const session = this.issueSession(credential.subject_key, this.dependencies.uuid.create(), now)
     await this.repository.createSession(session.record)
-    return { kind: "authenticated", session: session.credential }
+    return {
+      kind: "authenticated",
+      session: session.credential,
+      subjectKey: credential.subject_key,
+    }
   }
 
   async authenticate(token: string, csrfToken: string): Promise<AuthResult> {

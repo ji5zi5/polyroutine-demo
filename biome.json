@@ -53,6 +53,7 @@
         "apps/web/app/manifest.ts",
         "apps/web/next.config.mjs",
         "apps/web/playwright.config.ts",
+        "apps/web/tests/e2e/support/global-setup.ts",
         "vitest.config.ts",
         "vitest.integration.config.ts"
       ],
