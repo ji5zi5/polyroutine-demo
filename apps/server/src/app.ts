@@ -13,6 +13,8 @@ import { createEvidenceService } from "./modules/evidence/service.js"
 import { registerGoalRoutes } from "./modules/goals/routes.js"
 import { createGoalService } from "./modules/goals/service.js"
 import { serverModules } from "./modules/index.js"
+import { registerModerationRoutes } from "./modules/moderation/routes.js"
+import { createModerationService, type EvidenceUrlSigner } from "./modules/moderation/service.js"
 import { registerPredictionRoutes } from "./modules/predictions/routes.js"
 import { createPredictionService } from "./modules/predictions/service.js"
 
@@ -26,6 +28,12 @@ export type ServerOptions = {
   readonly database: DatabaseHandle
   readonly evidenceObjectStore: EvidenceObjectStore
   readonly evidenceVerifier: EvidenceVerifier
+  readonly moderation?: {
+    readonly claimLeaseMs?: number
+    readonly queueLimit?: number
+    readonly reviewSlaMs?: number
+    readonly signer: EvidenceUrlSigner
+  }
   readonly uuid: UuidFactory
 }
 
@@ -68,6 +76,27 @@ export function createServer(options: ServerOptions) {
       uuid: options.uuid,
     }),
   )
+  if (options.moderation !== undefined) {
+    registerModerationRoutes(
+      app,
+      createModerationService({
+        clock: options.clock,
+        database: options.database,
+        objectStore: options.evidenceObjectStore,
+        ...(options.moderation.claimLeaseMs === undefined
+          ? {}
+          : { claimLeaseMs: options.moderation.claimLeaseMs }),
+        ...(options.moderation.queueLimit === undefined
+          ? {}
+          : { queueLimit: options.moderation.queueLimit }),
+        ...(options.moderation.reviewSlaMs === undefined
+          ? {}
+          : { reviewSlaMs: options.moderation.reviewSlaMs }),
+        signer: options.moderation.signer,
+        uuid: options.uuid,
+      }),
+    )
+  }
 
   app.get("/health/live", async () => ({
     checkedAt: options.clock.now().toISOString(),

@@ -1,5 +1,12 @@
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3"
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from "@aws-sdk/client-s3"
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 import type { EvidenceObject, EvidenceObjectKey, EvidenceObjectStore } from "@polyroutine/contracts"
+import type { EvidenceUrlSigner } from "./modules/moderation/service.js"
 
 export type EvidenceStoreSettings = {
   readonly accessKeyId: string
@@ -9,7 +16,7 @@ export type EvidenceStoreSettings = {
   readonly secretAccessKey: string
 }
 
-export class S3EvidenceObjectStore implements EvidenceObjectStore {
+export class S3EvidenceObjectStore implements EvidenceObjectStore, EvidenceUrlSigner {
   readonly #bucket: string
   readonly #client: S3Client
 
@@ -28,6 +35,13 @@ export class S3EvidenceObjectStore implements EvidenceObjectStore {
 
   async delete(key: EvidenceObjectKey): Promise<void> {
     await this.#client.send(new DeleteObjectCommand({ Bucket: this.#bucket, Key: key }))
+  }
+
+  async signRead(key: EvidenceObjectKey, expiresAt: Date): Promise<string> {
+    const expiresIn = Math.max(1, Math.floor((expiresAt.getTime() - Date.now()) / 1_000))
+    return getSignedUrl(this.#client, new GetObjectCommand({ Bucket: this.#bucket, Key: key }), {
+      expiresIn,
+    })
   }
 
   async put(object: EvidenceObject): Promise<void> {

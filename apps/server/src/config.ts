@@ -3,6 +3,9 @@ import { z } from "zod"
 const runtimeConfigSchema = z.object({
   DATABASE_URL: z.url({ protocol: /^postgres(?:ql)?$/ }),
   HOST: z.string().default("127.0.0.1"),
+  MODERATION_CLAIM_LEASE_SECONDS: z.coerce.number().int().min(60).max(1_800).default(900),
+  MODERATION_QUEUE_LIMIT: z.coerce.number().int().min(1).max(1_000).default(100),
+  MODERATION_REVIEW_SLA_HOURS: z.coerce.number().int().min(1).max(168).default(24),
   MONTHLY_COST_CAP_KRW: z.coerce.number().int().positive().max(100_000),
   OBJECT_STORAGE_ACCESS_KEY: z.string().min(1),
   OBJECT_STORAGE_BUCKET: z.string().min(3),

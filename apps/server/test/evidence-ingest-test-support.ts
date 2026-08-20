@@ -20,10 +20,24 @@ export const OTHER_OWNER = "other-owner"
 
 class MemoryEvidenceStore implements EvidenceObjectStore {
   readonly objects = new Map<EvidenceObjectKey, EvidenceObject>()
+  readonly signedUrls = new Map<string, Date>()
+  failDelete = false
   failPut = false
 
   async delete(key: EvidenceObjectKey): Promise<void> {
+    if (this.failDelete) throw new TypeError("object deletion unavailable")
     this.objects.delete(key)
+  }
+
+  isSignedUrlValid(url: string, now: Date): boolean {
+    const expiresAt = this.signedUrls.get(url)
+    return expiresAt !== undefined && now < expiresAt
+  }
+
+  async signRead(key: EvidenceObjectKey, expiresAt: Date): Promise<string> {
+    const url = `https://objects.test/signed/${encodeURIComponent(key)}?expires=${expiresAt.getTime()}`
+    this.signedUrls.set(url, expiresAt)
+    return url
   }
 
   async put(object: EvidenceObject): Promise<void> {
@@ -40,12 +54,18 @@ type SendOptions = {
   readonly owner?: string
 }
 
+type ModerationHarnessOptions = {
+  readonly queueLimit?: number
+}
+
 type JsonResponse = {
   readonly body: {
     readonly [key: string]: unknown
+    readonly case_id?: unknown
     readonly code?: unknown
     readonly receipt_id?: unknown
     readonly state?: unknown
+    readonly url?: unknown
   }
   readonly statusCode: number
 }
@@ -66,6 +86,8 @@ export class EvidenceHarness {
     },
   }
 
+  constructor(private readonly moderationOptions: ModerationHarnessOptions = {}) {}
+
   async start(): Promise<void> {
     this.postgres = await startTestPostgres()
     this.database = createDatabase(this.postgres.connectionString)
@@ -75,13 +97,17 @@ export class EvidenceHarness {
       database: this.database,
       evidenceObjectStore: this.store,
       evidenceVerifier: this.verifier,
+      moderation: { ...this.moderationOptions, signer: this.store },
       uuid: { create: () => this.uuidValues.shift() ?? randomUUID() },
     })
     this.address = await this.server.listen({ host: "127.0.0.1", port: 0 })
   }
 
   async stop(): Promise<void> {
-    if (this.server !== undefined) await this.server.close()
+    if (this.server !== undefined) {
+      this.server.server.closeAllConnections()
+      await this.server.close()
+    }
     if (this.database !== undefined) await this.database.destroy()
     if (this.postgres !== undefined) await this.postgres.container.stop()
   }
@@ -89,12 +115,15 @@ export class EvidenceHarness {
   async reset(): Promise<void> {
     const database = this.requireDatabase()
     this.now = new Date("2026-08-19T01:00:00.000Z")
+    this.store.failDelete = false
     this.store.failPut = false
     this.store.objects.clear()
+    this.store.signedUrls.clear()
     this.uuidValues.length = 0
     this.verifierCalls = 0
     await database.pool.query("truncate users cascade")
     await database.pool.query("truncate analytics_events")
+    await database.pool.query("truncate operator_roles, moderation_retention_aggregates")
     await database.pool.query(
       "insert into users(subject_key, timezone) values ($1, 'Asia/Seoul'), ($2, 'Asia/Seoul')",
       [OWNER, OTHER_OWNER],
@@ -138,6 +167,20 @@ export class EvidenceHarness {
           : { "idempotency-key": options.idempotencyKey }),
         "x-subject-key": options.owner ?? OWNER,
       },
+      method: "POST",
+    })
+    const text = await response.body.text()
+    return { body: text.length === 0 ? {} : JSON.parse(text), statusCode: response.statusCode }
+  }
+
+  async sendJson(
+    path: string,
+    body: unknown,
+    headers: Readonly<Record<string, string>>,
+  ): Promise<JsonResponse> {
+    const response = await request(`${this.address}${path}`, {
+      body: JSON.stringify(body),
+      headers: { "content-type": "application/json", ...headers },
       method: "POST",
     })
     const text = await response.body.text()

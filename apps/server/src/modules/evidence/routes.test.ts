@@ -8,8 +8,12 @@ const goalId = "00000000-0000-4000-8000-000000000001"
 
 function createHarness() {
   const app = Fastify()
+  let quarantineCalls = 0
   let submitCalls = 0
   const service: EvidenceService = {
+    quarantineRejected: async () => {
+      quarantineCalls += 1
+    },
     challenge: async () => ({
       challengeId: "00000000-0000-4000-8000-000000000002",
       claim: evidenceRecipeV1.capture.claim,
@@ -23,7 +27,11 @@ function createHarness() {
     },
   }
   registerEvidenceRoutes(app, service)
-  return { app, submitCalls: () => submitCalls }
+  return {
+    app,
+    quarantineCalls: () => quarantineCalls,
+    submitCalls: () => submitCalls,
+  }
 }
 
 describe("evidence HTTP boundary", () => {
@@ -59,6 +67,8 @@ describe("evidence HTTP boundary", () => {
     expect(disguisedResponse).toMatchObject({ statusCode: 415 })
     expect(disguisedResponse.json()).toEqual({ code: "IMAGE_TYPE_MISMATCH" })
     expect(unsupported.submitCalls() + disguised.submitCalls()).toBe(0)
+    expect(unsupported.quarantineCalls()).toBe(0)
+    expect(disguised.quarantineCalls()).toBe(1)
   })
 
   it("rejects payloads over eight MiB before ingest", async () => {

@@ -99,6 +99,26 @@ async function deleteFailedObject(
 
 export function createEvidenceService(options: EvidenceServiceOptions) {
   return {
+    quarantineRejected: async (subjectKey: string, goalId: string, reason: string) => {
+      const now = options.clock.now()
+      const goal = await options.database.pool.query(
+        "select 1 from goals where id = $1 and owner_subject_key = $2",
+        [goalId, subjectKey],
+      )
+      if (goal.rowCount !== 1) return
+      await options.database.pool.query(
+        `insert into moderation_cases(id, goal_id, state, reason, created_at, review_due_at)
+         values ($1, $2, 'quarantined', $3, $4, $5)`,
+        [
+          options.uuid.create(),
+          goalId,
+          `unsafe_upload:${reason}`,
+          now,
+          new Date(now.getTime() + 24 * 60 * 60 * 1_000),
+        ],
+      )
+    },
+
     challenge: async (subjectKey: string, goalId: string) => {
       const now = options.clock.now()
       const expiresAt = new Date(

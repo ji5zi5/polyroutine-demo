@@ -98,6 +98,9 @@ export function registerEvidenceRoutes(app: FastifyInstance, service: EvidenceSe
           )
           return reply.status(202).send({ receipt_id: receipt.receiptId, state: receipt.state })
         } catch (error) {
+          if (error instanceof EvidenceImageError) {
+            await service.quarantineRejected(subjectKey, goalId.data, error.code)
+          }
           return sendEvidenceError(reply, error)
         }
       },

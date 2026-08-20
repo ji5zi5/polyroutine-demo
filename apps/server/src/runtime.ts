@@ -28,6 +28,12 @@ export function createRuntime(config: RuntimeConfig) {
     database,
     evidenceObjectStore,
     evidenceVerifier: boundedOperatorVerifier,
+    moderation: {
+      claimLeaseMs: config.MODERATION_CLAIM_LEASE_SECONDS * 1_000,
+      queueLimit: config.MODERATION_QUEUE_LIMIT,
+      reviewSlaMs: config.MODERATION_REVIEW_SLA_HOURS * 60 * 60 * 1_000,
+      signer: evidenceObjectStore,
+    },
     uuid: { create: randomUUID },
   })
   return { database, server }
