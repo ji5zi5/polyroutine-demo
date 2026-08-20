@@ -8,7 +8,7 @@ const seedCards = [
     yesPercent: 64,
     recipe: {
       id: "study_note_photo_v1",
-      instructions: "수학 오답노트 3문제를 풀어요.",
+      instructions: "수학 오답노트 3문제 풀기",
       version: 1,
     },
   },
@@ -19,7 +19,7 @@ const seedCards = [
     yesPercent: 71,
     recipe: {
       id: "study_note_photo_v1",
-      instructions: "책 15쪽을 읽고 핵심을 3줄로 기록해요.",
+      instructions: "책 15쪽 읽고 3줄 요약하기",
       version: 1,
     },
   },
@@ -31,7 +31,7 @@ const seedCards = [
     yesPercent: 58,
     recipe: {
       id: "study_note_photo_v1",
-      instructions: "오늘 목표 2개를 모두 끝내요.",
+      instructions: "오늘 목표 2개 모두 끝내기",
       version: 1,
     },
   },
@@ -40,14 +40,14 @@ const seedCards = [
     aiPercent: 78,
     goalId: "demo-4",
     yesPercent: 82,
-    recipe: { id: "study_note_photo_v1", instructions: "영어 단어 20개를 복습해요.", version: 1 },
+    recipe: { id: "study_note_photo_v1", instructions: "영어 단어 20개 복습하기", version: 1 },
   },
   {
     anonymousAlias: "달리는 토끼",
     aiPercent: 52,
     goalId: "demo-5",
     yesPercent: 47,
-    recipe: { id: "study_note_photo_v1", instructions: "저녁에 30분 달려요.", version: 1 },
+    recipe: { id: "study_note_photo_v1", instructions: "저녁에 30분 달리기", version: 1 },
   },
   {
     anonymousAlias: "준비하는 판다",
@@ -56,7 +56,7 @@ const seedCards = [
     yesPercent: 69,
     recipe: {
       id: "study_note_photo_v1",
-      instructions: "포트폴리오 소개 문장을 5줄 다듬어요.",
+      instructions: "포트폴리오 소개 5줄 다듬기",
       version: 1,
     },
   },
@@ -67,7 +67,7 @@ const seedCards = [
     yesPercent: 76,
     recipe: {
       id: "study_note_photo_v1",
-      instructions: "잠들기 전에 스트레칭을 15분 해요.",
+      instructions: "잠들기 전 스트레칭 15분 하기",
       version: 1,
     },
   },
@@ -78,7 +78,7 @@ const seedCards = [
     yesPercent: 53,
     recipe: {
       id: "study_note_photo_v1",
-      instructions: "면접 예상 질문 3개에 답을 적어요.",
+      instructions: "면접 예상 질문 3개 답변 적기",
       version: 1,
     },
   },
@@ -171,7 +171,7 @@ const generatedCards = Array.from({ length: 120 }, (_, index): PredictionCardMod
     predictionCutoffAt: "2099-01-01T13:00:00.000Z",
     recipe: {
       id: "study_note_photo_v1",
-      instructions: bundleSize === 1 ? primaryTask : `오늘 목표 ${bundleSize}개를 모두 끝내요.`,
+      instructions: bundleSize === 1 ? primaryTask : `오늘 목표 ${bundleSize}개 모두 끝내기`,
       version: 1,
     },
     ...(bundleSize === 1 ? {} : { tasks }),

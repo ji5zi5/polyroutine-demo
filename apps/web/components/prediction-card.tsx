@@ -40,7 +40,6 @@ function PredictionGoalContent({ card }: { readonly card: PredictionCardModel })
 
   return (
     <div className="predictionGoalBundle">
-      <h3>오늘 목표 {card.tasks.length}개</h3>
       <ul aria-label="묶음 목표">
         {card.tasks.map((task) => (
           <li key={task}>{task}</li>
@@ -63,6 +62,7 @@ export function PredictionCard({
   const pointerOriginRef = useRef<number | null>(null)
   const timerRef = useRef<number | null>(null)
   const [committing, setCommitting] = useState(false)
+  const [committingChoice, setCommittingChoice] = useState<PredictionChoice | null>(null)
   const locked = busy || committing
   const yesPercent = card.yesPercent ?? 50
   const yesPayout = Math.ceil(10_000 / yesPercent)
@@ -99,6 +99,7 @@ export function PredictionCard({
         return
       }
       setCommitting(true)
+      setCommittingChoice(choice)
       cardRef.current?.setAttribute("data-committing", "true")
       const direction = choice === "yes" ? -1 : 1
       positionCard(direction * window.innerWidth)
@@ -106,6 +107,7 @@ export function PredictionCard({
         onChoice(choice)
         resetCard()
         setCommitting(false)
+        setCommittingChoice(null)
         timerRef.current = null
       }, SWIPE_COMMIT_MS)
     },
@@ -216,6 +218,11 @@ export function PredictionCard({
             </section>
           </div>
         </button>
+        {committingChoice === null || !rewardEligible ? null : (
+          <span aria-live="polite" className="betCommitFeedback">
+            -100P · {committingChoice === "yes" ? "가능" : "불가능"} 베팅
+          </span>
+        )}
       </div>
       <div className="predictionDecisionActions">
         <div aria-hidden="true" className="swipeGestureGuide">

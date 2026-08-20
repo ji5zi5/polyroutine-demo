@@ -249,6 +249,7 @@
   display: grid;
   flex: 1;
   gap: var(--space-6);
+  inline-size: 100%;
 }
 
 .predictionCardBody h3,
@@ -261,6 +262,7 @@
 .predictionGoalBundle {
   display: grid;
   gap: var(--space-4);
+  inline-size: 100%;
 }
 
 .predictionGoalBundle ul {
@@ -272,27 +274,57 @@
 }
 
 .predictionGoalBundle li {
-  align-items: start;
-  display: grid;
   font-size: var(--text-body-large);
   font-weight: var(--weight-medium);
-  gap: var(--space-3);
-  grid-template-columns: var(--space-2) minmax(0, 1fr);
   line-height: var(--leading-body);
+  text-align: center;
 }
 
-.predictionGoalBundle li::before {
-  background: var(--accent-primary);
-  block-size: var(--space-2);
-  border-radius: var(--radius-pill);
-  content: "";
-  inline-size: var(--space-2);
-  margin-block-start: 0.45em;
+.predictionGoalBundle li + li {
+  border-block-start: var(--border-width) solid var(--tds-line-subtle);
+  padding-block-start: var(--space-3);
 }
 
 .marketConsensus {
   display: grid;
   gap: var(--space-3);
+  inline-size: 100%;
+}
+
+.betCommitFeedback {
+  animation: bet-commit-confirm var(--motion-slow) var(--motion-ease-out) both;
+  background: var(--tds-fg-primary);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-2);
+  color: var(--tds-fg-inverse);
+  font-size: var(--text-caption);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-strong);
+  inset-block-end: var(--space-5);
+  inset-inline-start: 50%;
+  padding: var(--space-2) var(--space-4);
+  pointer-events: none;
+  position: absolute;
+  white-space: nowrap;
+  z-index: 3;
+}
+
+@keyframes bet-commit-confirm {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, var(--space-3)) scale(0.96);
+  }
+
+  24%,
+  78% {
+    opacity: 1;
+    transform: translate(-50%, 0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, calc(0px - var(--space-2))) scale(0.98);
+  }
 }
 
 .marketConsensusTitle {
@@ -575,6 +607,7 @@
 @media (prefers-reduced-motion: reduce) {
   .predictionCardStage,
   .predictionCard,
+  .betCommitFeedback,
   .swipeStamp {
     animation: none;
     transition: none;

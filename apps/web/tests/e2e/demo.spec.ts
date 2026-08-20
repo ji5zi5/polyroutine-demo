@@ -65,9 +65,7 @@ test("demo completes the mobile prediction routine", async ({ page }) => {
 
   // Then: the next card replaces it and the full four-screen demo can finish.
   await expect(page.getByText("51,100P", { exact: true })).toBeVisible()
-  await expect(
-    page.getByRole("heading", { name: "책 15쪽을 읽고 핵심을 3줄로 기록해요." }),
-  ).toBeVisible()
+  await expect(page.getByRole("heading", { name: "책 15쪽 읽고 3줄 요약하기" })).toBeVisible()
   await choosePrediction(page, "no")
   await choosePrediction(page, "yes")
   await choosePrediction(page, "yes")
@@ -75,14 +73,10 @@ test("demo completes the mobile prediction routine", async ({ page }) => {
 
   await expect(page.getByRole("heading", { name: "가능할지 골라요" })).toBeVisible()
   await expect(page.getByText("50,700P", { exact: true })).toBeVisible()
-  await expect(
-    page.getByRole("heading", { name: "포트폴리오 소개 문장을 5줄 다듬어요." }),
-  ).toBeVisible()
+  await expect(page.getByRole("heading", { name: "포트폴리오 소개 5줄 다듬기" })).toBeVisible()
   await choosePrediction(page, "yes")
   await expect(page.getByText("50,600P", { exact: true })).toBeVisible()
-  await expect(
-    page.getByRole("heading", { name: "잠들기 전에 스트레칭을 15분 해요." }),
-  ).toBeVisible()
+  await expect(page.getByRole("heading", { name: "잠들기 전 스트레칭 15분 하기" })).toBeVisible()
   await page.getByRole("button", { name: "내 목표", exact: true }).click()
   await expect(page.getByRole("heading", { name: "내 목표 상장하기" })).toBeVisible()
   await expect(page.getByLabel("오늘의 목표")).toHaveValue("")
@@ -189,9 +183,7 @@ test("skipping a market card spends no points", async ({ page }) => {
   await page.getByRole("button", { name: "건너뛰기", exact: true }).click()
 
   await expect(page.getByText("51,200P", { exact: true })).toBeVisible()
-  await expect(
-    page.getByRole("heading", { name: "책 15쪽을 읽고 핵심을 3줄로 기록해요." }),
-  ).toBeVisible()
+  await expect(page.getByRole("heading", { name: "책 15쪽 읽고 3줄 요약하기" })).toBeVisible()
 })
 
 test("AI probability changes for different vague goals", async ({ page }) => {
