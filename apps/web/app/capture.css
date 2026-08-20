@@ -1,75 +1,19 @@
 .capturePanel,
 .evidenceStatusPanel {
-  --accent-hover: oklch(0.522 0.176 257);
-  --accent-primary: var(--tds-bg-brand);
-  --accent-soft: var(--tds-bg-brand-weak);
-  --border-default: var(--tds-line-default);
-  --focus: var(--tds-fg-brand);
-  --radius-control: var(--tds-radius-xl);
-  --radius-panel: var(--tds-radius-3xl);
-  --status-error: var(--tds-fg-danger);
-  --status-error-soft: var(--tds-bg-secondary);
-  --status-success: var(--tds-fg-success);
-  --status-success-soft: var(--tds-bg-secondary);
-  --status-warning: var(--tds-fg-secondary);
-  --status-warning-soft: var(--tds-bg-secondary);
-  --surface-accent: var(--tds-bg-primary);
-  --surface-elevated: var(--tds-bg-primary);
-  --surface-primary: var(--tds-bg-primary);
-  --surface-secondary: var(--tds-bg-secondary);
-  --text-on-accent: var(--tds-fg-inverse);
-  --text-primary: var(--tds-fg-primary);
-  --text-secondary: var(--tds-fg-secondary);
-  background: var(--tds-bg-primary);
-  border-color: var(--tds-line-default);
+  background: var(--surface-elevated);
+  border-color: var(--border-default);
   box-shadow: none;
-  color: var(--tds-fg-primary);
-  font-family: var(--tds-font-sans);
-}
-
-.capturePanel {
-  border-radius: var(--tds-radius-3xl);
+  color: var(--text-primary);
 }
 
 .evidenceStatusPanel {
-  border-radius: var(--tds-radius-2xl);
+  background: var(--surface-secondary);
+  border: 0;
 }
 
 .capturePanel h2,
 .evidenceStatusPanel h2 {
-  font-size: 1.5rem;
-  font-weight: var(--weight-strong);
-  letter-spacing: -0.02em;
-  line-height: 1.3;
   text-wrap: balance;
-}
-
-.capturePanel button,
-.capturePanel .quietLink,
-.evidenceStatusPanel button,
-.evidenceStatusPanel .quietLink {
-  border-radius: var(--tds-radius-xl);
-  font-size: 1.0625rem;
-  font-weight: var(--weight-strong);
-}
-
-.capturePanel button:disabled,
-.evidenceStatusPanel button:disabled {
-  opacity: var(--tds-disabled-opacity);
-}
-
-.capturePanel .eyebrow,
-.evidenceStatusPanel .statusLabel {
-  color: var(--tds-fg-secondary);
-  font-size: 0.8125rem;
-  font-weight: var(--weight-medium);
-  letter-spacing: 0;
-}
-
-.evidenceStatusPanel .panelCopy {
-  color: var(--tds-fg-secondary);
-  font-size: 0.9375rem;
-  line-height: 1.5;
 }
 
 .captureGuideList {
@@ -80,10 +24,9 @@
 }
 
 .captureChallenge {
-  background: var(--tds-bg-brand-weak);
-  border: var(--border-width) solid var(--tds-fg-brand);
-  border-radius: var(--tds-radius-xl);
-  color: var(--tds-fg-brand);
+  background: var(--accent-soft);
+  border-radius: var(--radius-xl);
+  color: var(--accent-primary);
   display: grid;
   gap: var(--space-2);
   padding: var(--space-6);
@@ -91,12 +34,13 @@
 
 .captureChallenge strong {
   font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
   overflow-wrap: anywhere;
 }
 
 .captureChallenge p:last-child {
-  color: var(--tds-fg-secondary);
+  color: var(--text-tertiary);
   font-size: 0.75rem;
 }
 
@@ -113,9 +57,9 @@
 
 .captureCamera,
 .capturePreview {
-  background: var(--tds-bg-primary);
-  border: var(--border-width) solid var(--tds-line-default);
-  border-radius: var(--tds-radius-xl);
+  background: var(--surface-primary);
+  border: var(--border-width) solid var(--border-default);
+  border-radius: var(--radius-xl);
   display: grid;
   gap: var(--space-3);
   margin: 0;
@@ -130,8 +74,8 @@
 .captureCamera video,
 .capturePreview img {
   aspect-ratio: var(--capture-frame-ratio);
-  background: var(--tds-bg-secondary);
-  border-radius: var(--tds-radius-m);
+  background: var(--surface-secondary);
+  border-radius: var(--radius-m);
   block-size: auto;
   inline-size: 100%;
   object-fit: cover;
@@ -139,9 +83,9 @@
 
 .capturePreview figcaption,
 .captureProgress p {
-  color: var(--tds-fg-secondary);
+  color: var(--text-tertiary);
   font-size: 0.75rem;
-  line-height: 1.4;
+  line-height: var(--leading-caption);
 }
 
 .captureProgress {
@@ -150,7 +94,7 @@
 }
 
 .captureProgress progress {
-  accent-color: var(--tds-bg-brand);
+  accent-color: var(--accent-primary);
   inline-size: 100%;
 }
 

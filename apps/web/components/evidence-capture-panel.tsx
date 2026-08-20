@@ -30,7 +30,6 @@ export function EvidenceCapturePanel({
         evidence={state.evidence}
         onRefresh={() => void actions.refreshStatus().then(onGoalRefresh)}
         onResubmit={actions.resetForResubmission}
-        receiptId={state.receiptId}
       />
     )
   }

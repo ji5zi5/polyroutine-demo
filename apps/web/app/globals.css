@@ -3,6 +3,7 @@
 @import "./surfaces.css";
 @import "./routine.css";
 @import "./capture.css";
+@import "./demo-app.css";
 
 * {
   box-sizing: border-box;
@@ -12,6 +13,7 @@ html {
   background: var(--surface-primary);
   color: var(--text-primary);
   font-family: var(--font-sans);
+  font-synthesis: none;
 }
 
 body {
@@ -33,28 +35,41 @@ p {
 }
 
 h1 {
-  font-size: var(--text-display);
+  font-size: var(--text-heading-1);
   font-weight: var(--weight-strong);
-  letter-spacing: var(--tracking-display);
-  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-heading);
+  line-height: var(--leading-heading);
 }
 
 h2 {
   font-size: var(--text-heading-2);
+  font-weight: var(--weight-strong);
   letter-spacing: var(--tracking-heading);
   line-height: var(--leading-heading);
 }
 
 h3 {
-  font-size: var(--text-body-large);
+  font-size: var(--text-heading-3);
+  font-weight: var(--weight-strong);
+  letter-spacing: -0.015em;
   line-height: var(--leading-heading);
 }
 
-p {
+p,
+li,
+dd,
+dt {
+  font-size: var(--text-body);
   line-height: var(--leading-body);
 }
 
 ::selection {
   background: var(--accent-soft);
   color: var(--text-primary);
+}
+
+@media (min-width: 64rem) {
+  h1 {
+    font-size: 2rem;
+  }
 }

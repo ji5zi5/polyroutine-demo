@@ -10,10 +10,11 @@ import { EvidenceCapturePanel } from "./evidence-capture-panel"
 import { GoalPanel } from "./goal-panel"
 import { Notice } from "./notice"
 import { PredictionPanel } from "./prediction-panel"
-import { TodayTimeline } from "./today-timeline"
 
 type DailyDashboardProps = {
   readonly account: Account
+  readonly accountActionsVisible: boolean
+  readonly initialConfirmedCount: number
   readonly onDelete: () => Promise<void>
   readonly onLogout: () => Promise<void>
 }
@@ -28,15 +29,21 @@ function goalErrorMessage(error: ApiClientError | ApiNetworkError): string {
   return "목표를 저장하지 못했어요. 입력을 확인한 뒤 다시 시도해요."
 }
 
-export function DailyDashboard({ account, onDelete, onLogout }: DailyDashboardProps) {
+export function DailyDashboard({
+  account,
+  accountActionsVisible,
+  initialConfirmedCount,
+  onDelete,
+  onLogout,
+}: DailyDashboardProps) {
   const [goal, setGoal] = useState<Goal | null>(null)
   const [result, setResult] = useState<DailyResult | null>(null)
   const [historicalGoal, setHistoricalGoal] = useState<Goal | null>(null)
   const [goalLoaded, setGoalLoaded] = useState(false)
-  const [online, setOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine)
+  const [online, setOnline] = useState(true)
   const [goalBusy, setGoalBusy] = useState(false)
   const [goalError, setGoalError] = useState<string | null>(null)
-  const [confirmedCount, setConfirmedCount] = useState(0)
+  const [confirmedCount, setConfirmedCount] = useState(initialConfirmedCount)
   const [refreshVersion, setRefreshVersion] = useState(0)
 
   useEffect(() => {
@@ -51,6 +58,7 @@ export function DailyDashboard({ account, onDelete, onLogout }: DailyDashboardPr
     }
   }, [])
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: refreshVersion is an explicit reload trigger.
   useEffect(() => {
     let active = true
     const cachedGoals = getCachedGoals(account.subjectKey)
@@ -120,12 +128,20 @@ export function DailyDashboard({ account, onDelete, onLogout }: DailyDashboardPr
   return (
     <main className="routineShell">
       <header className="appHeader">
-        <div className="stackCompact">
-          <p className="productName">폴리루틴 · 오늘</p>
-          <h1>오늘의 루틴</h1>
-          <p className="lead">목표 하나와 익명 의견을 서버가 확인한 상태 그대로 보여줘요.</p>
+        <div className="appHeaderTop">
+          <p className="productName">폴리루틴</p>
+          {accountActionsVisible ? (
+            <AccountActions online={online} onDelete={onDelete} onLogout={onLogout} />
+          ) : null}
         </div>
-        <AccountActions online={online} onDelete={onDelete} onLogout={onLogout} />
+        <div className="stackCompact">
+          <h1>{result === null ? "오늘 루틴" : "오늘의 선택"}</h1>
+          <p className="lead">
+            {result === null
+              ? "오늘 할 일을 하나씩 끝내요."
+              : "카드를 좌우로 넘겨 다른 사람의 루틴을 예상해요."}
+          </p>
+        </div>
       </header>
 
       {online ? null : (
@@ -134,29 +150,26 @@ export function DailyDashboard({ account, onDelete, onLogout }: DailyDashboardPr
         </Notice>
       )}
 
-      <div className="routineGrid">
-        <aside className="timelineRail">
-          <TodayTimeline
-            goalState={goal?.state ?? null}
-            priorResultAvailable={result !== null && result.goal.id !== goal?.id}
+      <div className="routineMain">
+        {result === null ? null : (
+          <PredictionPanel
+            account={account}
+            confirmedCount={confirmedCount}
+            online={online}
+            onConfirmed={() => setConfirmedCount((count) => count + 1)}
           />
-        </aside>
-        <div className="routineMain">
-          {goalLoaded ? (
+        )}
+        {goalLoaded ? (
+          result === null ? (
             <GoalPanel
               busy={goalBusy}
               error={goalError}
               goal={goal}
-              historicalGoal={result === null ? historicalGoal : null}
+              historicalGoal={historicalGoal}
               online={online}
               onCreate={handleCreate}
             />
           ) : (
-            <section className="surfacePanel" aria-busy="true">
-              <p>서버에서 오늘 상태를 확인하고 있어요.</p>
-            </section>
-          )}
-          {result === null ? null : (
             <DailyResultPanel
               busy={!goalLoaded}
               currentGoal={goal}
@@ -164,22 +177,28 @@ export function DailyDashboard({ account, onDelete, onLogout }: DailyDashboardPr
               onRefresh={refreshToday}
               result={result}
             />
-          )}
+          )
+        ) : (
+          <section className="surfacePanel" aria-busy="true">
+            <p>오늘 루틴을 불러오고 있어요.</p>
+          </section>
+        )}
+        {goal === null ? null : (
+          <EvidenceCapturePanel
+            account={account}
+            goal={goal}
+            online={online}
+            onGoalRefresh={refreshToday}
+          />
+        )}
+        {result === null ? (
           <PredictionPanel
             account={account}
             confirmedCount={confirmedCount}
             online={online}
             onConfirmed={() => setConfirmedCount((count) => count + 1)}
           />
-          {goal === null ? null : (
-            <EvidenceCapturePanel
-              account={account}
-              goal={goal}
-              online={online}
-              onGoalRefresh={refreshToday}
-            />
-          )}
-        </div>
+        ) : null}
       </div>
     </main>
   )

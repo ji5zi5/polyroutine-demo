@@ -5,15 +5,13 @@ import "./globals.css"
 
 export const metadata: Metadata = {
   description: "한 번에 하나의 학습 약속을 기록하고 증명하는 성인용 루틴 PWA",
+  icons: { icon: "/icon.svg" },
   title: "폴리루틴",
 }
 
 export const viewport: Viewport = {
-  colorScheme: "light dark",
-  themeColor: [
-    { color: "#fffdf9", media: "(prefers-color-scheme: light)" },
-    { color: "#171715", media: "(prefers-color-scheme: dark)" },
-  ],
+  colorScheme: "light",
+  themeColor: "#ffffff",
   width: "device-width",
 }
 

@@ -1,5 +1,6 @@
 import ky, { NetworkError, TimeoutError } from "ky"
 import { z } from "zod"
+import { demoApiResponse } from "../../../lib/demo-api"
 
 const apiOriginSchema = z.url()
 const forwardedHeaders = [
@@ -33,6 +34,8 @@ async function forward(
 ): Promise<Response> {
   const requestUrl = new URL(request.url)
   const { path } = await context.params
+  const demoResponse = demoApiResponse(request, path, method)
+  if (demoResponse !== null) return demoResponse
   const upstream = new URL(`/v1/${path.map(encodeURIComponent).join("/")}`, upstreamOrigin())
   upstream.search = requestUrl.search
 

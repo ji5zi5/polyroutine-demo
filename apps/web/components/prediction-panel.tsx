@@ -12,7 +12,6 @@ import type { Account, PredictionFeed } from "../lib/contracts"
 import { clearIdempotencyKey, getOrCreateIdempotencyKey } from "../lib/session-storage"
 import { Notice } from "./notice"
 import { PredictionCard, type PredictionChoice } from "./prediction-card"
-import { ShortagePanel } from "./shortage-panel"
 
 type Message = {
   readonly kind: "error" | "info" | "success"
@@ -34,8 +33,8 @@ type PredictionPanelProps = {
 
 function feedErrorMessage(error: ApiClientError | ApiNetworkError): string {
   return error instanceof ApiNetworkError
-    ? "연결이 끊겼습니다. 카드 목록을 다시 확인해 주세요."
-    : "카드 목록을 불러오지 못했습니다. 잠시 뒤 다시 확인해 주세요."
+    ? "연결이 끊겼어요. 연결한 뒤 카드 목록을 다시 확인해요."
+    : "카드 목록을 불러오지 못했어요. 잠시 뒤 다시 확인해요."
 }
 
 export function PredictionPanel({
@@ -85,29 +84,13 @@ export function PredictionPanel({
       if (error instanceof ApiClientError || error instanceof ApiNetworkError) {
         setMessage({
           kind: "error",
-          text: "카드는 표시됐지만 노출 기록 연결이 지연되고 있습니다.",
+          text: "카드는 표시했지만 노출 기록 연결이 늦어지고 있어요.",
         })
         return
       }
       throw error
     })
   }, [account.subjectKey, activeCard])
-
-  const reloadAfterDecision = async (goalId: string): Promise<void> => {
-    try {
-      setFeed(await getPredictionFeed(account.subjectKey))
-    } catch (error) {
-      if (error instanceof ApiClientError || error instanceof ApiNetworkError) {
-        setFeed((current) =>
-          current === null
-            ? current
-            : { ...current, cards: current.cards.filter((card) => card.goalId !== goalId) },
-        )
-        return
-      }
-      throw error
-    }
-  }
 
   const submit = async (vote: PendingVote): Promise<void> => {
     if (!online) return
@@ -122,24 +105,32 @@ export function PredictionPanel({
       })
       clearIdempotencyKey("vote", account.subjectKey, vote.goalId)
       setPendingVote(null)
+      setFeed((current) =>
+        current === null
+          ? current
+          : { ...current, cards: current.cards.filter((card) => card.goalId !== vote.goalId) },
+      )
       onConfirmed()
-      await reloadAfterDecision(vote.goalId)
       setMessage({
         kind: "success",
-        text: `${vote.choice.toUpperCase()}가 서버에 저장되었습니다.`,
+        text: vote.choice === "yes" ? "가능으로 선택했어요." : "불가능으로 선택했어요.",
       })
     } catch (error) {
       if (error instanceof ApiNetworkError) {
         setMessage({
           kind: "error",
-          text: "연결이 끊겨 서버 확인을 마치지 못했습니다. 같은 요청으로 다시 확인하세요.",
+          text: "연결이 끊겼어요. 다시 연결되면 같은 선택으로 이어갈게요.",
         })
         return
       }
       if (error instanceof ApiClientError && error.status === 409 && error.replacement) {
         clearIdempotencyKey("vote", account.subjectKey, vote.goalId)
         setPendingVote(null)
-        await reloadAfterDecision(vote.goalId)
+        setFeed((current) =>
+          current === null
+            ? current
+            : { ...current, cards: current.cards.filter((card) => card.goalId !== vote.goalId) },
+        )
         setMessage({
           kind: "info",
           text: "이미 다른 요청에서 투표가 확정되어 다음 카드를 불러왔어요.",
@@ -149,7 +140,7 @@ export function PredictionPanel({
       if (error instanceof ApiClientError) {
         setMessage({
           kind: "error",
-          text: "서버가 투표를 확정하지 않았습니다. 카드 상태를 다시 확인해 주세요.",
+          text: "선택을 저장하지 못했어요. 카드를 새로 불러온 뒤 다시 골라 주세요.",
         })
         return
       }
@@ -173,23 +164,31 @@ export function PredictionPanel({
       <header className="sectionHeader">
         <div className="stackCompact">
           <p className="eyebrow" data-testid="prediction-progress">
-            {Math.min(confirmedCount, 5)}/최대 5
+            {Math.min(confirmedCount, 5)}개 참여
           </p>
-          <h2 id="prediction-heading">익명 예측</h2>
+          <h2 id="prediction-heading">다른 사람 루틴</h2>
         </div>
-        <button
-          className="buttonQuiet"
-          disabled={loading || !online}
-          onClick={() => void refreshFeed()}
-          type="button"
-        >
-          {loading ? "확인 중" : online ? "카드 새로고침" : "연결 후 카드 새로고침"}
-        </button>
+        {feed !== null && activeCard === undefined ? (
+          <button
+            className="buttonQuiet"
+            disabled={loading || !online}
+            onClick={() => void refreshFeed()}
+            type="button"
+          >
+            {loading ? "불러오는 중" : online ? "카드 다시 불러오기" : "연결 후 다시 불러오기"}
+          </button>
+        ) : null}
       </header>
+      <progress
+        aria-label="오늘 참여 진행"
+        className="predictionProgress"
+        max={5}
+        value={Math.min(confirmedCount, 5)}
+      />
 
       {online ? null : (
         <Notice announce kind="info">
-          오프라인에서는 카드와 투표 상태를 변경하지 않습니다.
+          오프라인에서는 카드와 의견 상태를 바꾸지 않아요.
         </Notice>
       )}
 
@@ -200,15 +199,20 @@ export function PredictionPanel({
       )}
 
       {loading && feed === null ? (
-        <p className="formHelper">서버에서 참여 가능한 익명 목표를 확인하고 있습니다.</p>
+        <p className="formHelper">참여할 수 있는 새 루틴을 불러오고 있어요.</p>
       ) : null}
-      {feed === null ? null : (
-        <>
-          <ShortagePanel shortage={feed.shortage} />
-          {activeCard === undefined ? null : (
-            <PredictionCard busy={submitting || !online} card={activeCard} onChoice={choose} />
-          )}
-        </>
+      {feed === null ? null : activeCard === undefined ? (
+        <div className="predictionEmpty stackCompact">
+          <h3>오늘 참여를 마쳤어요</h3>
+          <p>새 루틴이 준비되면 다시 참여할 수 있어요.</p>
+        </div>
+      ) : (
+        <PredictionCard
+          busy={submitting || !online}
+          card={activeCard}
+          key={activeCard.goalId}
+          onChoice={choose}
+        />
       )}
       {pendingVote === null ? null : (
         <button

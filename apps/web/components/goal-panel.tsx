@@ -15,13 +15,12 @@ type GoalPanelProps = {
 }
 
 const serverTimeFormatter = new Intl.DateTimeFormat("ko-KR", {
-  dateStyle: "medium",
   timeStyle: "short",
   timeZone: "UTC",
 })
 
 function formatServerTime(value: string): string {
-  return `${serverTimeFormatter.format(new Date(value))} UTC`
+  return `오늘 ${serverTimeFormatter.format(new Date(value))}까지`
 }
 
 function stateLabel(state: Goal["state"]): string {
@@ -95,7 +94,7 @@ export function GoalPanel({ busy, error, goal, historicalGoal, online, onCreate 
         <section className="surfacePanel goalPanel" aria-labelledby="goal-heading">
           <div className="stackCompact">
             <p className="statusLabel statusReady">{stateLabel(goal.state)}</p>
-            <h2 id="goal-heading">서버가 확정한 오늘 목표</h2>
+            <h2 id="goal-heading">25분 학습하고 노트 남기기</h2>
           </div>
           <p>
             25분 학습 후 오늘 날짜, 서버 코드, 학습 노트 {goal.fields.noteLineTarget}줄 이상을 한
@@ -103,11 +102,7 @@ export function GoalPanel({ busy, error, goal, historicalGoal, online, onCreate 
           </p>
           <dl className="deadlineList">
             <div className="deadlineRow">
-              <dt>서버 기준 예측 마감</dt>
-              <dd>{formatServerTime(goal.predictionCutoffAt)}</dd>
-            </div>
-            <div className="deadlineRow">
-              <dt>서버 기준 증거 마감</dt>
+              <dt>사진 인증</dt>
               <dd>{formatServerTime(goal.evidenceDeadlineAt)}</dd>
             </div>
           </dl>

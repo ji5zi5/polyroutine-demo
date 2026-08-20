@@ -14,7 +14,6 @@ type EvidenceStatusViewProps = {
   readonly evidence: EvidenceStatus | null
   readonly onRefresh: () => void
   readonly onResubmit: () => void
-  readonly receiptId: string
 }
 
 function PolicyLink() {
@@ -30,7 +29,6 @@ export function EvidenceStatusView({
   evidence,
   onRefresh,
   onResubmit,
-  receiptId,
 }: EvidenceStatusViewProps) {
   if (evidence === null || evidence.state === "pending") {
     return (
@@ -44,11 +42,10 @@ export function EvidenceStatusView({
           </div>
         }
         className="evidenceStatusPanel"
-        heading="사진을 접수했어요"
-        state={{ kind: "pending", label: "운영 검토 대기" }}
+        heading="사진을 확인하고 있어요"
+        state={{ kind: "pending", label: "인증 확인 중" }}
       >
-        <p>서버 영수증 {receiptId}을 받았어요.</p>
-        <p>검토가 끝날 때까지 pending이에요. 완료 시간은 약속하지 않아요.</p>
+        <p>사진을 안전하게 접수했어요. 확인이 끝나면 여기에서 결과를 볼 수 있어요.</p>
       </StatusPanel>
     )
   }
@@ -56,15 +53,12 @@ export function EvidenceStatusView({
   if (evidence.state === "accepted") {
     return (
       <StatusPanel
-        action={<PolicyLink />}
+        action={null}
         className="evidenceStatusPanel"
-        heading="사진 항목을 확인했어요"
-        state={{ kind: "ready", label: "검토 결과 · 확인" }}
+        heading="사진 인증이 끝났어요"
+        state={{ kind: "ready", label: "인증 완료" }}
       >
-        <p>
-          운영 검토는 사진 속 레시피 항목만 확인해요. 실제 학습 완료, 사진 진위, 실시간 촬영을
-          증명하지 않아요.
-        </p>
+        <p>오늘 날짜와 학습 노트를 사진에서 확인했어요.</p>
       </StatusPanel>
     )
   }
