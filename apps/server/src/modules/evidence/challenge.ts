@@ -75,6 +75,7 @@ export async function createEvidenceChallenge(
       code,
       expiresAt: expiresAt.toISOString(),
       instructions: evidenceRecipeV1.instructions,
+      issuedAt: now.toISOString(),
     }
   } catch (error) {
     await client.query("rollback")

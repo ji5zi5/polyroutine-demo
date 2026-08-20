@@ -4,6 +4,12 @@ import {
   type Account,
   accountSchema,
   apiErrorSchema,
+  type EvidenceChallenge,
+  type EvidenceReceipt,
+  type EvidenceStatus,
+  evidenceChallengeSchema,
+  evidenceReceiptSchema,
+  evidenceStatusResponseSchema,
   type Goal,
   goalSchema,
   type PredictionFeed,
@@ -27,6 +33,14 @@ export class ApiClientError extends Error {
   }
 }
 
+export class ApiAbortError extends Error {
+  override readonly name = "ApiAbortError"
+
+  constructor(cause: DOMException) {
+    super("The upload was cancelled before its receipt was confirmed", { cause })
+  }
+}
+
 export class ApiNetworkError extends Error {
   override readonly name = "ApiNetworkError"
 
@@ -44,6 +58,9 @@ async function responseFrom(request: Promise<Response>): Promise<Response> {
   try {
     return await request
   } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new ApiAbortError(error)
+    }
     if (
       error instanceof NetworkError ||
       error instanceof TimeoutError ||
@@ -145,6 +162,59 @@ export async function exposeCard(
       headers: { "idempotency-key": idempotencyKey, "x-subject-key": subjectKey },
       json: { goalId },
     }),
+  )
+}
+
+export async function requestEvidenceChallenge(
+  subjectKey: string,
+  goalId: string,
+): Promise<EvidenceChallenge> {
+  return parseResponse(
+    http.post(`v1/goals/${goalId}/evidence/challenge`, {
+      headers: { "x-subject-key": subjectKey },
+    }),
+    evidenceChallengeSchema,
+  )
+}
+
+export async function getEvidenceStatus(
+  subjectKey: string,
+  goalId: string,
+): Promise<EvidenceStatus | null> {
+  const response = await parseResponse(
+    http.get(`v1/goals/${goalId}/evidence`, {
+      headers: { "x-subject-key": subjectKey },
+    }),
+    evidenceStatusResponseSchema,
+  )
+  return response.evidence
+}
+
+type EvidenceUploadRequest = {
+  readonly challengeCode: string
+  readonly file: File
+  readonly goalId: string
+  readonly idempotencyKey: string
+  readonly subjectKey: string
+}
+
+export async function uploadEvidence(
+  input: EvidenceUploadRequest,
+  signal: AbortSignal,
+): Promise<EvidenceReceipt> {
+  const bytes = await input.file.arrayBuffer()
+  return parseResponse(
+    http.post(`v1/goals/${input.goalId}/evidence`, {
+      body: bytes,
+      headers: {
+        "content-type": input.file.type,
+        "idempotency-key": input.idempotencyKey,
+        "x-evidence-challenge": input.challengeCode,
+        "x-subject-key": input.subjectKey,
+      },
+      signal,
+    }),
+    evidenceReceiptSchema,
   )
 }
 

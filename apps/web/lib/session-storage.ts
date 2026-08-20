@@ -5,7 +5,7 @@ const SESSION_KEY = "poly-routine-session:v1"
 const SESSION_CHANGE_EVENT = "poly-routine-session-change"
 
 function idempotencyStorageKey(
-  kind: "exposure" | "vote",
+  kind: "evidence" | "exposure" | "vote",
   subjectKey: string,
   goalId: string,
 ): string {
@@ -58,7 +58,7 @@ export function clearStoredAccount(): void {
 }
 
 export function getOrCreateIdempotencyKey(
-  kind: "exposure" | "vote",
+  kind: "evidence" | "exposure" | "vote",
   subjectKey: string,
   goalId: string,
 ): string {
@@ -71,7 +71,7 @@ export function getOrCreateIdempotencyKey(
 }
 
 export function clearIdempotencyKey(
-  kind: "exposure" | "vote",
+  kind: "evidence" | "exposure" | "vote",
   subjectKey: string,
   goalId: string,
 ): void {

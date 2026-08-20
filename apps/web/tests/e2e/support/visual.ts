@@ -3,7 +3,11 @@ import path from "node:path"
 import AxeBuilder from "@axe-core/playwright"
 import { expect, type Page } from "@playwright/test"
 
-const evidenceDirectory = path.resolve(import.meta.dirname, "../../../../../.omo/evidence/task-7")
+const evidenceTask = process.env["POLYROUTINE_EVIDENCE_TASK"] ?? "task-7"
+const evidenceDirectory = path.resolve(
+  import.meta.dirname,
+  `../../../../../.omo/evidence/${evidenceTask}`,
+)
 const viewports = [
   { height: 800, name: "mobile", width: 360 },
   { height: 1024, name: "tablet", width: 768 },
@@ -12,7 +16,7 @@ const viewports = [
 
 type ActionLogEntry = {
   readonly action: string
-  readonly input: "button" | "keyboard" | "screen-reader" | "server" | "swipe"
+  readonly input: "button" | "camera" | "file" | "keyboard" | "screen-reader" | "server" | "swipe"
   readonly outcome: string
   readonly sequence: number
 }

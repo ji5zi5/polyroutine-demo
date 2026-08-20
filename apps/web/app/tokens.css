@@ -50,6 +50,7 @@
   --focus-width: 0.1875rem;
   --target-min: 2.75rem;
   --checkbox-size: 1.25rem;
+  --capture-frame-ratio: 4 / 3;
   --measure-narrow: 44rem;
   --measure-wide: 72rem;
   --measure-prose: 64ch;

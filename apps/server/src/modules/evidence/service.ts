@@ -11,6 +11,7 @@ import { challengeMatches, createEvidenceChallenge } from "./challenge.js"
 import { EvidenceServiceError } from "./errors.js"
 import { assertOwnedOpenGoal, type EvidenceGoalRow } from "./goal.js"
 import type { EvidenceImage } from "./image.js"
+import { getEvidenceStatus } from "./status.js"
 
 type EvidenceServiceOptions = {
   readonly clock: Clock
@@ -61,6 +62,14 @@ export function createEvidenceService(options: EvidenceServiceOptions) {
 
     challenge: async (subjectKey: string, goalId: string) =>
       createEvidenceChallenge(options, subjectKey, goalId),
+
+    status: async (subjectKey: string, goalId: string) =>
+      getEvidenceStatus({
+        database: options.database,
+        goalId,
+        now: options.clock.now(),
+        subjectKey,
+      }),
 
     submit: async (
       subjectKey: string,

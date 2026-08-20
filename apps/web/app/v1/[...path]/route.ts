@@ -8,6 +8,7 @@ const forwardedHeaders = [
   "content-type",
   "idempotency-key",
   "x-csrf-token",
+  "x-evidence-challenge",
   "x-subject-key",
 ] as const
 

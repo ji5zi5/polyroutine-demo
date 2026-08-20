@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { ApiClientError, ApiNetworkError, createGoal, getToday } from "../lib/api"
 import type { Account, Goal } from "../lib/contracts"
 import { getCachedGoals, rememberGoal } from "../lib/goal-cache"
+import { EvidenceCapturePanel } from "./evidence-capture-panel"
 import { GoalPanel } from "./goal-panel"
 import { Notice } from "./notice"
 import { PredictionPanel } from "./prediction-panel"
@@ -169,6 +170,9 @@ export function DailyDashboard({ account, onLogout }: DailyDashboardProps) {
             online={online}
             onConfirmed={() => setConfirmedCount((count) => count + 1)}
           />
+          {goal === null ? null : (
+            <EvidenceCapturePanel account={account} goal={goal} online={online} />
+          )}
         </div>
       </div>
     </main>

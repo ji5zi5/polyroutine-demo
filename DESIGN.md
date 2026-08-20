@@ -7,6 +7,7 @@
 - Lazyweb: 2 queries, 4 screens viewed (Atoms, Blinkist, ClickUp, Coursera); retained one dominant goal, direct feedback, and a clearly separated primary action rather than copying visual assets.
 - StyleGallery: adopted `center` + `stack`; the document owns scrolling, content has a bounded readable measure, and DOM order remains reading and focus order.
 - Imagen drafts: skipped because no image-generation tool is available in this worker runtime. Task 2 is an operational app bootstrap and uses no decorative image substitute.
+- Task 9 capture research: retained StyleGallery `center` + `stack` with document-only scroll; consulted beui.dev `file-upload` and stateful `button`, adopting real byte-progress/state feedback while rejecting decorative loaders, fabricated review progress, and motion beyond the existing 140ms control response.
 
 ## 1. Atmosphere & Identity
 
@@ -50,7 +51,7 @@ Primary stack: `"Segoe UI Variable", "Noto Sans KR", "Apple SD Gothic Neo", sans
 
 ## 4. Spacing & Layout
 
-The base unit is 4px. Tokens: `--space-1` 4px, `--space-2` 8px, `--space-3` 12px, `--space-4` 16px, `--space-6` 24px, `--space-8` 32px, `--space-12` 48px, and `--space-16` 64px. Shape tokens are `--radius-control` 6px, `--radius-panel` 16px, and `--radius-pill` for compact labels. `--target-min` keeps controls at least 44px tall.
+The base unit is 4px. Tokens: `--space-1` 4px, `--space-2` 8px, `--space-3` 12px, `--space-4` 16px, `--space-6` 24px, `--space-8` 32px, `--space-12` 48px, and `--space-16` 64px. Shape tokens are `--radius-control` 6px, `--radius-panel` 16px, and `--radius-pill` for compact labels. `--target-min` keeps controls at least 44px tall. `--capture-frame-ratio` is 4:3 for camera and local-preview stability.
 
 StyleGallery `center` bounds onboarding and showcase content at 44rem with fluid 16-32px gutters. The authenticated surface composes `center`, `stack`, and `main-with-rail`: the primary task stays dominant beside a narrow timeline at roomy widths, then source-order reflows to one column below 768px. The browser document is the only scroll owner. At 200 percent zoom the same ordinary document flow is preserved, and every grid track uses `minmax(min(..., 100%), 1fr)` or a single column to prevent horizontal overflow.
 
@@ -113,11 +114,20 @@ StyleGallery `center` bounds onboarding and showcase content at 44rem with fluid
 - **Mutation state**: signup, goal creation, prediction, refresh, retry, and logout actions are unavailable offline with written `연결 후` labels; no action is queued silently.
 - **Next local day**: the prior confirmed goal remains readable while the empty current-day goal form opens. Creating the new goal does not erase the prior record.
 
-The `/showcase` route remains the primitive state harness. Task 7 extends it with form, action, timeline, prediction, and shortage states before those primitives are accepted on the product screen.
+### Guided Evidence Capture
+
+- **Structure**: one `surfacePanel` stack contains recipe guidance, consent, a server challenge code with countdown, camera/file controls, device-local preview, real upload feedback, then the server receipt or result. Document scroll remains the only scroll owner.
+- **States**: unavailable, ready, preparing challenge, challenge active, camera opening/denied, photo selected, uploading, transport-unconfirmed, pending, accepted, rejected, inconclusive, challenge expired, deadline closed, and attempts exhausted.
+- **Truthfulness**: the challenge is labeled replay-reduction only; camera `capture` is a device hint, not liveness; upload percentage appears only when measured byte progress exists; pending promises no review duration and shows no looping moderation/result progress.
+- **Retry**: the same idempotency key is retained only when transport leaves receipt confirmation unknown. A new challenge/photo attempt is offered only for a server-confirmed rejected or inconclusive result while the server says an attempt and deadline remain. Denial, invalid input, challenge expiry, deadline closure, accepted, pending, and exhaustion never show transport retry.
+- **Privacy and safety**: preview object URLs are revoked on replacement, cancel, receipt, and unmount. Consent precedes challenge creation. The capture and receipt/result states retain a visible link to prohibited-content, reporting, operator-access, and retention policy. Filenames, image metadata, bytes, and object keys never enter analytics or error copy.
+- **Accessibility**: controls stay in DOM/reading order, camera denial announces an alert while preserving file fallback, the countdown has a textual expiry, the progress element has a measured value only, and every action retains a 44px target and visible focus.
+
+The `/showcase` route remains the reusable primitive state harness. Task 7 extends it with form, action, timeline, prediction, and shortage states. Guided capture is a single product composition of those accepted primitives rather than a second reusable component family.
 
 ## 6. Motion & Interaction
 
-Micro feedback lasts 140ms with ease-out and only changes transform, opacity, or color. There is no decorative or perpetual animation. Async buttons keep the control in place while text and `aria-busy` communicate progress. Prediction cards follow the consulted beui.dev swipe mechanism at lower intensity: `touch-action: pan-y` preserves document scroll, direct pointer movement updates a transform without React rerenders, release beyond 22 percent of card width submits the visible choice, and any shorter drag returns to rest. A server response, never the drag itself, removes a card. `prefers-reduced-motion: reduce` removes transform and transition. Focus remains visible independently of hover, and pointer feedback is not required to understand state.
+Micro feedback lasts 140ms with ease-out and only changes transform, opacity, or color. There is no decorative or perpetual animation. Async buttons keep the control in place while text and `aria-busy` communicate progress. Prediction cards follow the consulted beui.dev swipe mechanism at lower intensity: `touch-action: pan-y` preserves document scroll, direct pointer movement updates a transform without React rerenders, release beyond 22 percent of card width submits the visible choice, and any shorter drag returns to rest. A server response, never the drag itself, removes a card. Guided capture uses the consulted file-upload mechanism only for measured byte progress and semantic state replacement; pending operator review is static text with explicit refresh, never a spinner or staged result animation. `prefers-reduced-motion: reduce` removes transform and transition. Focus remains visible independently of hover, and pointer feedback is not required to understand state.
 
 ## 7. Depth & Surface
 
@@ -125,4 +135,4 @@ Strategy: mixed tonal shift plus whisper border. Panels use `--surface-secondary
 
 ## 8. Accessibility Constraints & Accepted Debt
 
-Target WCAG 2.2 AA: 4.5:1 body contrast, 3:1 large text, 44px targets, visible keyboard focus, semantic landmarks, zoom-safe flow, Korean language metadata, and reduced-motion support. Plain language states what happened and what action is available. Task 7 additionally requires keyboard-only signup, goal creation, YES/NO prediction, refresh, and offline retry; critical axe violations are zero at 360px and 1280px. Offline mode preserves the readable shell and account-scoped confirmed history while disabling every server mutation rather than pretending it was queued. The primary learner persona must complete the flow one-handed without swipe, at 200 percent zoom without two-dimensional scrolling, and after a dropped response without remembering whether a vote was stored. No accepted accessibility or design debt exists through Task 7.
+Target WCAG 2.2 AA: 4.5:1 body contrast, 3:1 large text, 44px targets, visible keyboard focus, semantic landmarks, zoom-safe flow, Korean language metadata, and reduced-motion support. Plain language states what happened and what action is available. Task 7 additionally requires keyboard-only signup, goal creation, YES/NO prediction, refresh, and offline retry; critical axe violations are zero at 360px and 1280px. Offline mode preserves the readable shell and account-scoped confirmed history while disabling every server mutation rather than pretending it was queued. The primary learner persona must complete the flow one-handed without swipe, at 200 percent zoom without two-dimensional scrolling, and after a dropped response without remembering whether a vote or evidence receipt was stored. Task 9 additionally requires camera-denial fallback, explicit upload/review consent, challenge/deadline truth, measured-only upload progress, static pending copy, and bounded retry controls that remain keyboard and screen-reader operable. No accepted accessibility or design debt exists through Task 9.

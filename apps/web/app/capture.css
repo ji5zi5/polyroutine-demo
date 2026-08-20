@@ -1,0 +1,84 @@
+.capturePanel {
+  background: var(--surface-accent);
+}
+
+.captureGuideList {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-inline-start: var(--space-6);
+}
+
+.captureChallenge {
+  background: var(--accent-soft);
+  border: var(--border-width) solid var(--accent-primary);
+  border-radius: var(--radius-panel);
+  color: var(--accent-primary);
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-6);
+}
+
+.captureChallenge strong {
+  font-size: var(--text-heading-2);
+  letter-spacing: var(--tracking-caption);
+  overflow-wrap: anywhere;
+}
+
+.captureChallenge p:last-child {
+  color: var(--text-secondary);
+  font-size: var(--text-caption);
+}
+
+.captureActions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.captureFileLabel {
+  cursor: pointer;
+}
+
+.captureCamera,
+.capturePreview {
+  background: var(--surface-elevated);
+  border: var(--border-width) solid var(--border-default);
+  border-radius: var(--radius-panel);
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  overflow: hidden;
+  padding: var(--space-3);
+}
+
+.captureCamera[hidden] {
+  display: none;
+}
+
+.captureCamera video,
+.capturePreview img {
+  aspect-ratio: var(--capture-frame-ratio);
+  background: var(--surface-secondary);
+  border-radius: var(--radius-control);
+  block-size: auto;
+  inline-size: 100%;
+  object-fit: cover;
+}
+
+.capturePreview figcaption {
+  color: var(--text-secondary);
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+}
+
+.visuallyHidden {
+  block-size: 1px;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  inline-size: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+}

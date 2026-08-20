@@ -20,7 +20,9 @@ function createHarness() {
       code: "PR-12345678",
       expiresAt: "2026-08-19T01:10:00.000Z",
       instructions: evidenceRecipeV1.instructions,
+      issuedAt: "2026-08-19T01:00:00.000Z",
     }),
+    status: async () => null,
     submit: async () => {
       submitCalls += 1
       return { receiptId: "00000000-0000-4000-8000-000000000003", state: "pending" }

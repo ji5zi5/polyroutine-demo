@@ -2,6 +2,7 @@
 @import "./controls.css";
 @import "./surfaces.css";
 @import "./routine.css";
+@import "./capture.css";
 
 * {
   box-sizing: border-box;

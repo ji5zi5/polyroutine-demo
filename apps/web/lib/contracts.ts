@@ -69,6 +69,43 @@ export const predictionSchema = z.object({
   submittedAt: z.iso.datetime(),
 })
 
+export const evidenceChallengeSchema = z.object({
+  challengeId: z.uuid(),
+  claim: z.literal("replay_reduction_only"),
+  code: z.string().regex(/^PR-[A-F0-9]{8}$/),
+  expiresAt: z.iso.datetime(),
+  instructions: z.string().min(1),
+  issuedAt: z.iso.datetime(),
+})
+export type EvidenceChallenge = Readonly<z.infer<typeof evidenceChallengeSchema>>
+
+export const evidenceReceiptSchema = z.object({
+  receipt_id: z.uuid(),
+  state: z.literal("pending"),
+})
+export type EvidenceReceipt = Readonly<z.infer<typeof evidenceReceiptSchema>>
+
+export const evidenceReasonCodeSchema = z
+  .enum([
+    "challenge_not_visible",
+    "image_unreadable",
+    "notes_insufficient",
+    "recipe_mismatch",
+    "review_unavailable",
+  ])
+  .nullable()
+
+export const evidenceStatusSchema = z.object({
+  attemptNumber: z.number().int().min(1).max(2),
+  attemptsRemaining: z.number().int().min(0).max(1),
+  canResubmit: z.boolean(),
+  reasonCode: evidenceReasonCodeSchema,
+  receiptId: z.uuid(),
+  state: z.enum(["pending", "accepted", "rejected", "inconclusive"]),
+})
+export type EvidenceStatus = Readonly<z.infer<typeof evidenceStatusSchema>>
+export const evidenceStatusResponseSchema = z.object({ evidence: evidenceStatusSchema.nullable() })
+
 export const apiErrorSchema = z.object({
   code: z.string().optional(),
   error: z.string().optional(),

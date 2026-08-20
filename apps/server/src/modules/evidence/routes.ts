@@ -55,10 +55,24 @@ export function registerEvidenceRoutes(app: FastifyInstance, service: EvidenceSe
         try {
           return reply.status(201).send(await service.challenge(subjectKey, goalId.data))
         } catch (error) {
-          return sendEvidenceError(reply, error)
+          if (error instanceof EvidenceServiceError) return sendEvidenceError(reply, error)
+          throw error
         }
       },
     )
+
+    evidence.get<{ Params: GoalParams }>("/v1/goals/:goalId/evidence", async (request, reply) => {
+      const subjectKey = subjectFrom(request.headers["x-subject-key"], reply)
+      if (subjectKey === null) return reply
+      const goalId = goalIdSchema.safeParse(request.params.goalId)
+      if (!goalId.success) return reply.status(400).send({ code: "INVALID_GOAL_ID" })
+      try {
+        return reply.send({ evidence: await service.status(subjectKey, goalId.data) })
+      } catch (error) {
+        if (error instanceof EvidenceServiceError) return sendEvidenceError(reply, error)
+        throw error
+      }
+    })
 
     evidence.post<{ Params: GoalParams }>(
       "/v1/goals/:goalId/evidence",
