@@ -199,6 +199,7 @@ function PointsScreen({
   const rewardDialogRef = useRef<HTMLDialogElement>(null)
   const [attendanceOpen, setAttendanceOpen] = useState(false)
   const [selectedReward, setSelectedReward] = useState<RewardItem | null>(null)
+  const [settlementFeedbackVisible, setSettlementFeedbackVisible] = useState(false)
 
   useEffect(() => {
     const dialog = attendanceDialogRef.current
@@ -210,6 +211,12 @@ function PointsScreen({
     if (selectedReward !== null && dialog !== null && !dialog.open) dialog.showModal()
   }, [selectedReward])
 
+  useEffect(() => {
+    if (!settlementFeedbackVisible) return
+    const timer = window.setTimeout(() => setSettlementFeedbackVisible(false), 800)
+    return () => window.clearTimeout(timer)
+  }, [settlementFeedbackVisible])
+
   return (
     <main className="demoViewport" key="points">
       <DemoTopBar label="포인트" />
@@ -217,7 +224,7 @@ function PointsScreen({
         <div className="demoHeading">
           <h1>내 포인트</h1>
         </div>
-        <section className="pointsCard">
+        <section className="pointsCard" data-settled={predictionPayout !== null}>
           <span>보유 포인트</span>
           <strong>{points.toLocaleString("ko-KR")}점</strong>
           <button
@@ -239,12 +246,23 @@ function PointsScreen({
               </strong>
             </div>
             <button
-              className="buttonQuiet"
+              aria-live="polite"
+              className={
+                settlementFeedbackVisible ? "buttonQuiet settlementFeedbackButton" : "buttonQuiet"
+              }
               disabled={predictionPayout !== null}
-              onClick={onSettlePredictions}
+              onClick={() => {
+                if (predictionPayout !== null) return
+                setSettlementFeedbackVisible(true)
+                onSettlePredictions()
+              }}
               type="button"
             >
-              {predictionPayout === null ? "예측 결과 정산하기" : "정산 완료"}
+              {predictionPayout === null
+                ? "예측 결과 정산하기"
+                : settlementFeedbackVisible
+                  ? `+${predictionPayout}P 적중`
+                  : "정산 완료"}
             </button>
           </section>
         )}
@@ -396,6 +414,7 @@ export function PrototypeDemo() {
   const nicknameDialogRef = useRef<HTMLDialogElement>(null)
   const verificationTimer = useRef<number | null>(null)
   const goalListedRef = useRef(false)
+  const predictionSettledRef = useRef(false)
   const settledRef = useRef(false)
   const [step, setStep] = useState<DemoStep>("predict")
   const [attendanceClaimed, setAttendanceClaimed] = useState(false)
@@ -471,6 +490,7 @@ export function PrototypeDemo() {
     setGoalText("")
     setEvidencePreviewUrl("")
     goalListedRef.current = false
+    predictionSettledRef.current = false
     settledRef.current = false
     setProbability(null)
     setPredictionPayout(null)
@@ -896,7 +916,8 @@ export function PrototypeDemo() {
           setPurchasedRewardIds((current) => [...current, reward.id])
         }}
         onSettlePredictions={() => {
-          if (predictionPayout !== null) return
+          if (predictionSettledRef.current) return
+          predictionSettledRef.current = true
           const payout = predictionPositions.reduce((total, position) => {
             return position.choice === demoPredictionOutcomes[position.goalId]
               ? total + position.payout
