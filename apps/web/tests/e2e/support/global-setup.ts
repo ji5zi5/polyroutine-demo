@@ -7,6 +7,7 @@ import { startTestPostgres } from "@polyroutine/testing"
 import { z } from "zod"
 
 const API_PORT = 3101
+const API_ORIGIN = `http://127.0.0.1:${API_PORT}`
 const WEB_ORIGIN = "http://127.0.0.1:3100"
 const evidenceTask = process.env["POLYROUTINE_EVIDENCE_TASK"] ?? "task-7"
 const evidenceDirectory = path.resolve(
@@ -27,11 +28,30 @@ const evidenceVerdictSchema = z.discriminatedUnion("state", [
 ])
 const uuidSchema = z.uuid()
 const extraQaPidSchema = z.coerce.number().int().positive().optional()
+const objectUploadQuerySchema = z.object({
+  expires: z.coerce.number().int().positive(),
+  key: z.string().startsWith("quarantine-pending/"),
+})
 
-type StoredEvidenceObject = {
-  readonly bytes: Uint8Array
-  readonly contentType: string
+type BrowserUploadStore = NonNullable<
+  Parameters<typeof createServer>[0]["evidenceBrowserUploadStore"]
+>
+type EvidenceObjectKey = Parameters<BrowserUploadStore["get"]>[0]
+type StoredEvidenceObject = NonNullable<Awaited<ReturnType<BrowserUploadStore["get"]>>>
+type EvidenceUploadTarget = Parameters<BrowserUploadStore["signUpload"]>[0]
+type ObjectUploadQuery = {
+  readonly expires: string
   readonly key: string
+}
+type ObjectUploadReply = {
+  header(name: string, value: string): ObjectUploadReply
+  send(payload?: unknown): unknown
+  status(code: number): ObjectUploadReply
+}
+type ObjectUploadRequest = {
+  readonly body: unknown
+  readonly headers: Readonly<Record<string, string | readonly string[] | undefined>>
+  readonly query: unknown
 }
 
 async function globalSetup(): Promise<() => Promise<void>> {
@@ -43,13 +63,22 @@ async function globalSetup(): Promise<() => Promise<void>> {
   const database = createDatabase(connectionString)
   await migrateUp(database)
   let serverTime = new Date(INITIAL_SERVER_TIME)
-  const evidenceObjects = new Map<string, StoredEvidenceObject>()
+  const evidenceObjects = new Map<EvidenceObjectKey, StoredEvidenceObject>()
+  const signedUploadKeys = new Map<string, EvidenceObjectKey>()
   const evidenceObjectStore = {
-    delete: async (key: string) => {
+    delete: async (key: EvidenceObjectKey) => {
       evidenceObjects.delete(key)
     },
+    get: async (key: EvidenceObjectKey) => evidenceObjects.get(key) ?? null,
     put: async (object: StoredEvidenceObject) => {
       evidenceObjects.set(object.key, object)
+    },
+    signUpload: async (target: EvidenceUploadTarget, expiresAt: Date) => {
+      signedUploadKeys.set(target.key, target.key)
+      const url = new URL("/__e2e/object-upload", API_ORIGIN)
+      url.searchParams.set("key", target.key)
+      url.searchParams.set("expires", String(expiresAt.getTime()))
+      return url.toString()
     },
   }
 
@@ -61,9 +90,39 @@ async function globalSetup(): Promise<() => Promise<void>> {
     },
     clock: { now: () => new Date(serverTime) },
     database,
+    evidenceBrowserUploadStore: evidenceObjectStore,
     evidenceObjectStore,
     uuid: { create: randomUUID },
   })
+
+  server.addContentTypeParser(
+    "application/octet-stream",
+    { bodyLimit: 8 * 1024 * 1024 + 1, parseAs: "buffer" },
+    (_request: unknown, body: Buffer, done: (error: Error | null, body: Buffer) => void) =>
+      done(null, body),
+  )
+  server.options("/__e2e/object-upload", async (_request: unknown, reply: ObjectUploadReply) =>
+    reply
+      .header("access-control-allow-headers", "content-type")
+      .header("access-control-allow-methods", "PUT")
+      .header("access-control-allow-origin", WEB_ORIGIN)
+      .status(204)
+      .send(),
+  )
+  server.put<{ Body: Buffer; Querystring: ObjectUploadQuery }>(
+    "/__e2e/object-upload",
+    async (request: ObjectUploadRequest, reply: ObjectUploadReply) => {
+      const query = objectUploadQuerySchema.parse(request.query)
+      if (serverTime.getTime() >= query.expires) return reply.status(403).send()
+      if (!Buffer.isBuffer(request.body)) return reply.status(415).send()
+      const contentType = request.headers["content-type"]
+      if (typeof contentType !== "string") return reply.status(415).send()
+      const key = signedUploadKeys.get(query.key)
+      if (key === undefined) return reply.status(404).send()
+      evidenceObjects.set(key, { bytes: request.body, contentType, key })
+      return reply.header("access-control-allow-origin", WEB_ORIGIN).status(204).send()
+    },
+  )
 
   server.post("/__e2e/reset", async () => {
     serverTime = new Date(INITIAL_SERVER_TIME)
@@ -75,6 +134,7 @@ async function globalSetup(): Promise<() => Promise<void>> {
       await database.pool.query(`truncate table ${identifiers.join(", ")} cascade`)
     }
     evidenceObjects.clear()
+    signedUploadKeys.clear()
     return { reset: true }
   })
 
@@ -114,7 +174,10 @@ async function globalSetup(): Promise<() => Promise<void>> {
       const objectCount = [...evidenceObjects.keys()].filter((key) =>
         key.startsWith(`quarantine/${goalId}/`),
       ).length
-      return { evidence: evidence.rows, objectCount }
+      const pendingObjectCount = [...evidenceObjects.keys()].filter((key) =>
+        key.startsWith(`quarantine-pending/${goalId}/`),
+      ).length
+      return { evidence: evidence.rows, objectCount, pendingObjectCount }
     },
   )
 

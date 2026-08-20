@@ -1,4 +1,31 @@
 :root {
+  --tds-fg-primary: oklch(0.234 0.03 254);
+  --tds-fg-secondary: oklch(0.452 0.028 253);
+  --tds-fg-tertiary: oklch(0.155 0.06 261 / 58%);
+  --tds-fg-disabled: oklch(0.752 0.016 251);
+  --tds-fg-inverse: oklch(1 0 0);
+  --tds-fg-brand: oklch(0.522 0.176 257);
+  --tds-fg-danger: oklch(0.628 0.218 22);
+  --tds-fg-success: oklch(0.493 0.143 154);
+  --tds-bg-primary: oklch(1 0 0);
+  --tds-bg-secondary: oklch(0.957 0.005 247);
+  --tds-bg-tertiary: oklch(0.913 0.008 247);
+  --tds-bg-brand: oklch(0.522 0.176 257);
+  --tds-bg-brand-weak: oklch(0.965 0.02 250);
+  --tds-bg-danger: oklch(0.628 0.218 22);
+  --tds-line-default: oklch(0.913 0.008 247);
+  --tds-line-subtle: oklch(0 0 0 / 8%);
+  --tds-line-strong: oklch(0.752 0.016 251);
+  --tds-press-overlay: oklch(0 0 0 / 26%);
+  --tds-disabled-opacity: 0.3;
+  --tds-font-sans:
+    "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro",
+    "Apple SD Gothic Neo", "Noto Sans KR", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --tds-radius-m: 0.75rem;
+  --tds-radius-xl: 1rem;
+  --tds-radius-2xl: 1.25rem;
+  --tds-radius-3xl: 1.5rem;
+  --tds-radius-full: 999rem;
   --surface-primary: #fffdf9;
   --surface-secondary: #f4f1eb;
   --surface-elevated: #ffffff;

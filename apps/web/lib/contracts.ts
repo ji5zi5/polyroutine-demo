@@ -85,6 +85,13 @@ export const evidenceReceiptSchema = z.object({
 })
 export type EvidenceReceipt = Readonly<z.infer<typeof evidenceReceiptSchema>>
 
+export const evidenceUploadTargetSchema = z.object({
+  expiresAt: z.iso.datetime(),
+  uploadId: z.uuid(),
+  uploadUrl: z.url(),
+})
+export type EvidenceUploadTarget = Readonly<z.infer<typeof evidenceUploadTargetSchema>>
+
 export const evidenceReasonCodeSchema = z
   .enum([
     "challenge_not_visible",

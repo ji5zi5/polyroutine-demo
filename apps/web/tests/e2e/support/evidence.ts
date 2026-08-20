@@ -25,6 +25,7 @@ const evidenceContractSchema = z.object({
     }),
   ),
   objectCount: z.number().int().nonnegative(),
+  pendingObjectCount: z.number().int().nonnegative(),
 })
 
 export type EvidenceContract = Readonly<z.infer<typeof evidenceContractSchema>>
@@ -62,12 +63,12 @@ export async function openEvidenceScenario(
   )
   expect(openResponse.status()).toBe(200)
   await page.reload()
-  await expect(page.getByRole("heading", { name: "학습 노트 사진 제출" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "학습 노트 사진을 제출해요" })).toBeVisible()
   return { evidenceDeadlineAt: today.goal.evidenceDeadlineAt, goalId: today.goal.id }
 }
 
 export async function prepareGuidedPhoto(page: Page): Promise<void> {
-  await page.getByLabel("사진 제출과 운영자 검토에 동의합니다").check()
+  await page.getByLabel("사진 제출과 운영자 검토에 동의해요").check()
   await page.getByRole("button", { name: "10분 코드 받기" }).click()
   await expect(page.getByTestId("evidence-challenge-code")).toContainText(/^PR-[A-F0-9]{8}$/)
   await expect(page.getByTestId("evidence-challenge-timer")).toContainText("10:00")

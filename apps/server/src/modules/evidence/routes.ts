@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply } from "fastify"
 import { z } from "zod"
+import type { BrowserEvidenceUploadService } from "./browser-upload.js"
 import { EvidenceServiceError } from "./errors.js"
 import { acceptedEvidenceContentTypes, decodeEvidenceImage, EvidenceImageError } from "./image.js"
 import type { EvidenceService } from "./service.js"
@@ -9,8 +10,19 @@ const HTTP_BODY_LIMIT = MAX_UPLOAD_BYTES + 1
 const goalIdSchema = z.uuid()
 const subjectKeySchema = z.string().trim().min(1).max(200)
 const idempotencyKeySchema = z.string().trim().min(1).max(128)
+const evidenceContentTypeSchema = z.enum(acceptedEvidenceContentTypes)
+const prepareUploadSchema = z.strictObject({
+  byteSize: z.number().int().min(1).max(MAX_UPLOAD_BYTES),
+  challengeCode: z.string().trim().min(1).max(64),
+  contentType: evidenceContentTypeSchema,
+})
+const completeUploadSchema = z.strictObject({
+  challengeCode: z.string().trim().min(1).max(64),
+  uploadId: z.uuid(),
+})
 
 type GoalParams = { readonly goalId: string }
+type UploadParams = GoalParams & { readonly uploadId: string }
 
 function subjectFrom(raw: unknown, reply: FastifyReply): string | null {
   const parsed = subjectKeySchema.safeParse(raw)
@@ -26,7 +38,11 @@ function sendEvidenceError(reply: FastifyReply, error: unknown) {
   throw error
 }
 
-export function registerEvidenceRoutes(app: FastifyInstance, service: EvidenceService): void {
+export function registerEvidenceRoutes(
+  app: FastifyInstance,
+  service: EvidenceService,
+  browserUpload?: BrowserEvidenceUploadService,
+): void {
   app.register(async (evidence) => {
     evidence.addContentTypeParser(
       [...acceptedEvidenceContentTypes],
@@ -60,6 +76,71 @@ export function registerEvidenceRoutes(app: FastifyInstance, service: EvidenceSe
         }
       },
     )
+
+    if (browserUpload !== undefined) {
+      evidence.post<{ Body: unknown; Params: GoalParams }>(
+        "/v1/goals/:goalId/evidence/presign",
+        async (request, reply) => {
+          const subjectKey = subjectFrom(request.headers["x-subject-key"], reply)
+          if (subjectKey === null) return reply
+          const goalId = goalIdSchema.safeParse(request.params.goalId)
+          if (!goalId.success) return reply.status(400).send({ code: "INVALID_GOAL_ID" })
+          const idempotencyKey = idempotencyKeySchema.safeParse(request.headers["idempotency-key"])
+          if (!idempotencyKey.success) {
+            return reply.status(400).send({ code: "INVALID_IDEMPOTENCY_KEY" })
+          }
+          const input = prepareUploadSchema.safeParse(request.body)
+          if (!input.success) return reply.status(400).send({ code: "INVALID_UPLOAD_REQUEST" })
+          try {
+            return reply.status(201).send(
+              await browserUpload.prepare(subjectKey, goalId.data, {
+                ...input.data,
+                idempotencyKey: idempotencyKey.data,
+              }),
+            )
+          } catch (error) {
+            return sendEvidenceError(reply, error)
+          }
+        },
+      )
+
+      evidence.post<{ Body: unknown; Params: GoalParams }>(
+        "/v1/goals/:goalId/evidence/complete",
+        async (request, reply) => {
+          const subjectKey = subjectFrom(request.headers["x-subject-key"], reply)
+          if (subjectKey === null) return reply
+          const goalId = goalIdSchema.safeParse(request.params.goalId)
+          if (!goalId.success) return reply.status(400).send({ code: "INVALID_GOAL_ID" })
+          const input = completeUploadSchema.safeParse(request.body)
+          if (!input.success) return reply.status(400).send({ code: "INVALID_UPLOAD_REQUEST" })
+          try {
+            const receipt = await browserUpload.complete(subjectKey, goalId.data, input.data)
+            return reply.status(202).send({ receipt_id: receipt.receiptId, state: receipt.state })
+          } catch (error) {
+            return sendEvidenceError(reply, error)
+          }
+        },
+      )
+
+      evidence.delete<{ Params: UploadParams }>(
+        "/v1/goals/:goalId/evidence/uploads/:uploadId",
+        async (request, reply) => {
+          const subjectKey = subjectFrom(request.headers["x-subject-key"], reply)
+          if (subjectKey === null) return reply
+          const goalId = goalIdSchema.safeParse(request.params.goalId)
+          const uploadId = z.uuid().safeParse(request.params.uploadId)
+          if (!goalId.success || !uploadId.success) {
+            return reply.status(400).send({ code: "INVALID_UPLOAD_REQUEST" })
+          }
+          try {
+            await browserUpload.cancel(subjectKey, goalId.data, uploadId.data)
+            return reply.status(204).send()
+          } catch (error) {
+            return sendEvidenceError(reply, error)
+          }
+        },
+      )
+    }
 
     evidence.get<{ Params: GoalParams }>("/v1/goals/:goalId/evidence", async (request, reply) => {
       const subjectKey = subjectFrom(request.headers["x-subject-key"], reply)

@@ -12,7 +12,9 @@ export class EvidenceServiceError extends Error {
       | "GOAL_NOT_FOUND"
       | "IDEMPOTENCY_CONFLICT"
       | "QUARANTINE_CLEANUP_FAILED"
-      | "QUARANTINE_UNAVAILABLE",
+      | "QUARANTINE_UNAVAILABLE"
+      | "UPLOAD_INTENT_NOT_FOUND"
+      | "UPLOAD_NOT_FOUND",
     readonly statusCode: 404 | 409 | 503,
   ) {
     super(code)

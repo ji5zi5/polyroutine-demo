@@ -1,8 +1,14 @@
-import type { Clock, EvidenceObjectStore, UuidFactory } from "@polyroutine/contracts"
+import type {
+  Clock,
+  EvidenceBrowserUploadStore,
+  EvidenceObjectStore,
+  UuidFactory,
+} from "@polyroutine/contracts"
 import type { DatabaseHandle } from "@polyroutine/db"
 import Fastify from "fastify"
 import type { AccountAuditSink } from "./modules/accounts/index.js"
 import { registerAccountsRoutes } from "./modules/accounts/index.js"
+import { createBrowserEvidenceUploadService } from "./modules/evidence/browser-upload.js"
 import { registerEvidenceRoutes } from "./modules/evidence/routes.js"
 import { createEvidenceService } from "./modules/evidence/service.js"
 import type { ReviewPolicy } from "./modules/evidence/verification/contract.js"
@@ -26,6 +32,7 @@ export type ServerOptions = {
   }
   readonly clock: Clock
   readonly database: DatabaseHandle
+  readonly evidenceBrowserUploadStore?: EvidenceBrowserUploadStore
   readonly evidenceObjectStore: EvidenceObjectStore
   readonly moderation?: {
     readonly claimLeaseMs?: number
@@ -66,14 +73,24 @@ export function createServer(options: ServerOptions) {
       uuid: options.uuid,
     }),
   )
+  const evidenceService = createEvidenceService({
+    clock: options.clock,
+    database: options.database,
+    objectStore: options.evidenceObjectStore,
+    uuid: options.uuid,
+  })
   registerEvidenceRoutes(
     app,
-    createEvidenceService({
-      clock: options.clock,
-      database: options.database,
-      objectStore: options.evidenceObjectStore,
-      uuid: options.uuid,
-    }),
+    evidenceService,
+    options.evidenceBrowserUploadStore === undefined
+      ? undefined
+      : createBrowserEvidenceUploadService({
+          clock: options.clock,
+          database: options.database,
+          objectStore: options.evidenceBrowserUploadStore,
+          submission: evidenceService,
+          uuid: options.uuid,
+        }),
   )
   if (options.moderation !== undefined) {
     registerModerationRoutes(

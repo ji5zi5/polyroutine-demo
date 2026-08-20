@@ -9,7 +9,7 @@ const evidenceDirectory = path.resolve(
   `../../../../../.omo/evidence/${evidenceTask}`,
 )
 const viewports = [
-  { height: 800, name: "mobile", width: 360 },
+  { height: 812, name: "mobile", width: 375 },
   { height: 1024, name: "tablet", width: 768 },
   { height: 900, name: "desktop", width: 1280 },
 ] as const

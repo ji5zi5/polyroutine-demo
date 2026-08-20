@@ -14,6 +14,11 @@ export type EvidenceObject = {
   readonly key: EvidenceObjectKey
 }
 
+export type EvidenceUploadTarget = {
+  readonly contentType: string
+  readonly key: EvidenceObjectKey
+}
+
 export interface Clock {
   now(): Date
 }
@@ -25,4 +30,10 @@ export interface UuidFactory {
 export interface EvidenceObjectStore {
   delete(key: EvidenceObjectKey): Promise<void>
   put(object: EvidenceObject): Promise<void>
+}
+
+export interface EvidenceBrowserUploadStore {
+  delete(key: EvidenceObjectKey): Promise<void>
+  get(key: EvidenceObjectKey): Promise<EvidenceObject | null>
+  signUpload(target: EvidenceUploadTarget, expiresAt: Date): Promise<string>
 }

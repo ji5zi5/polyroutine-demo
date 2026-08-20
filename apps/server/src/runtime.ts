@@ -21,6 +21,7 @@ export function createRuntime(config: RuntimeConfig) {
     },
     clock: { now: () => new Date() },
     database,
+    evidenceBrowserUploadStore: evidenceObjectStore,
     evidenceObjectStore,
     moderation: {
       claimLeaseMs: config.MODERATION_CLAIM_LEASE_SECONDS * 1_000,

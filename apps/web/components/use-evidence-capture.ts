@@ -4,12 +4,17 @@ import { useEffect, useRef, useState } from "react"
 import {
   ApiClientError,
   ApiNetworkError,
-  getEvidenceStatus,
+  cancelEvidenceUpload,
   requestEvidenceChallenge,
 } from "../lib/api"
-import type { Account, EvidenceChallenge, EvidenceStatus, Goal } from "../lib/contracts"
-import { sendEvidenceUpload } from "../lib/evidence-upload"
+import type { Account, EvidenceChallenge, Goal } from "../lib/contracts"
+import {
+  type EvidenceUploadContinuation,
+  type EvidenceUploadProgress,
+  sendEvidenceUpload,
+} from "../lib/evidence-upload"
 import { clearIdempotencyKey } from "../lib/session-storage"
+import { useEvidenceStatus } from "./use-evidence-status"
 
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024
 const acceptedImageTypes = new Set(["image/jpeg", "image/png", "image/webp"])
@@ -19,10 +24,7 @@ export type LocalEvidencePhoto = {
   readonly previewUrl: string
 }
 
-type CaptureMessage = {
-  readonly kind: "error" | "info"
-  readonly text: string
-}
+type CaptureMessage = Readonly<{ kind: "error" | "info"; text: string }>
 
 type EvidenceCaptureOptions = {
   readonly account: Account
@@ -35,16 +37,19 @@ export function useEvidenceCapture({ account, goal, online }: EvidenceCaptureOpt
   const [challengeExpired, setChallengeExpired] = useState(false)
   const [consent, setConsent] = useState(false)
   const [captureClosed, setCaptureClosed] = useState(false)
-  const [evidence, setEvidence] = useState<EvidenceStatus | null>(null)
   const [message, setMessage] = useState<CaptureMessage | null>(null)
   const [photo, setPhoto] = useState<LocalEvidencePhoto | null>(null)
   const [preparing, setPreparing] = useState(false)
-  const [receiptId, setReceiptId] = useState<string | null>(null)
   const [remainingSeconds, setRemainingSeconds] = useState(0)
-  const [statusBusy, setStatusBusy] = useState(false)
+  const status = useEvidenceStatus(account, goal, online)
   const [transportRetry, setTransportRetry] = useState(false)
+  const [uploadContinuation, setUploadContinuation] = useState<EvidenceUploadContinuation | null>(
+    null,
+  )
+  const [uploadProgress, setUploadProgress] = useState<EvidenceUploadProgress | null>(null)
   const [uploading, setUploading] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
+  const cancelRequestedRef = useRef(false)
 
   useEffect(() => {
     const previewUrl = photo?.previewUrl
@@ -73,43 +78,28 @@ export function useEvidenceCapture({ account, goal, online }: EvidenceCaptureOpt
     return () => window.clearInterval(interval)
   }, [challenge])
 
-  useEffect(() => {
-    if (goal.state === "prediction_open" || !online) return
-    let active = true
-    void getEvidenceStatus(account.subjectKey, goal.id)
-      .then((status) => {
-        if (!active || status === null) return
-        setEvidence(status)
-        setReceiptId(status.receiptId)
-      })
-      .catch((error) => {
-        if (error instanceof ApiClientError || error instanceof ApiNetworkError) {
-          if (active) setMessage({ kind: "error", text: "기존 증거 상태를 불러오지 못했습니다." })
-          return
-        }
-        throw error
-      })
-    return () => {
-      active = false
-    }
-  }, [account.subjectKey, goal.id, goal.state, online])
-
   const beginChallenge = async (): Promise<void> => {
     if (!consent || !online || goal.state !== "evidence_open") return
     clearIdempotencyKey("evidence", account.subjectKey, goal.id)
+    setUploadContinuation(null)
+    setUploadProgress(null)
     setPreparing(true)
     setMessage(null)
+    status.clearMessage()
     setChallengeExpired(false)
     setPhoto(null)
     try {
       setChallenge(await requestEvidenceChallenge(account.subjectKey, goal.id))
     } catch (error) {
       if (error instanceof ApiNetworkError) {
-        setMessage({ kind: "error", text: "서버 코드를 받지 못했습니다. 연결 후 다시 준비하세요." })
+        setMessage({
+          kind: "error",
+          text: "서버 코드를 받지 못했어요. 연결 후 다시 준비해 주세요.",
+        })
         return
       }
       if (error instanceof ApiClientError) {
-        setMessage({ kind: "error", text: "지금은 새 증거 코드를 만들 수 없습니다." })
+        setMessage({ kind: "error", text: "지금은 새 증거 코드를 만들 수 없어요." })
         return
       }
       throw error
@@ -120,6 +110,8 @@ export function useEvidenceCapture({ account, goal, online }: EvidenceCaptureOpt
 
   const selectPhoto = (file: File): void => {
     setMessage(null)
+    status.clearMessage()
+    setUploadProgress(null)
     if (!acceptedImageTypes.has(file.type) || file.size > MAX_IMAGE_BYTES) {
       setPhoto(null)
       setMessage({
@@ -135,37 +127,74 @@ export function useEvidenceCapture({ account, goal, online }: EvidenceCaptureOpt
     if (challenge === null || photo === null || challengeExpired || !online) return
     const controller = new AbortController()
     abortRef.current = controller
+    cancelRequestedRef.current = false
     setUploading(true)
     setMessage(null)
+    status.clearMessage()
     setTransportRetry(false)
+    setUploadProgress(null)
     try {
       const result = await sendEvidenceUpload(
-        { account, challenge, file: photo.file, goal },
+        {
+          account,
+          challenge,
+          continuation: uploadContinuation,
+          file: photo.file,
+          goal,
+          onProgress: setUploadProgress,
+        },
         controller.signal,
       )
+      if (cancelRequestedRef.current) {
+        if (result.kind === "transport_unknown" && result.continuation !== null) {
+          try {
+            await cancelEvidenceUpload(account.subjectKey, goal.id, result.continuation.uploadId)
+          } catch (error) {
+            if (error instanceof ApiClientError || error instanceof ApiNetworkError) {
+              setUploadContinuation(result.continuation)
+              setTransportRetry(true)
+              setMessage({
+                kind: "error",
+                text: "업로드 취소를 확인하지 못했어요. 같은 업로드 키로 상태를 확인해 주세요.",
+              })
+              return
+            }
+            throw error
+          }
+        }
+        clearIdempotencyKey("evidence", account.subjectKey, goal.id)
+        setUploadContinuation(null)
+        setPhoto(null)
+        setMessage({ kind: "info", text: "업로드를 취소했어요. 사진은 접수하지 않았어요." })
+        return
+      }
       switch (result.kind) {
         case "receipt":
-          setReceiptId(result.receiptId)
-          setEvidence(null)
+          status.acceptReceipt(result.receiptId)
           setChallenge(null)
           setPhoto(null)
+          setUploadContinuation(null)
           return
         case "transport_unknown":
+          setUploadContinuation(result.continuation)
           setTransportRetry(true)
           setMessage({ kind: "error", text: result.message })
           return
         case "challenge_expired":
           setChallengeExpired(true)
           setPhoto(null)
+          setUploadContinuation(null)
           setMessage({ kind: "error", text: result.message })
           return
         case "closed":
           setCaptureClosed(true)
           setChallenge(null)
           setPhoto(null)
+          setUploadContinuation(null)
           setMessage({ kind: "error", text: result.message })
           return
         case "rejected":
+          setUploadContinuation(null)
           setMessage({ kind: "error", text: result.message })
           return
         default: {
@@ -175,29 +204,9 @@ export function useEvidenceCapture({ account, goal, online }: EvidenceCaptureOpt
       }
     } finally {
       abortRef.current = null
+      cancelRequestedRef.current = false
+      setUploadProgress(null)
       setUploading(false)
-    }
-  }
-
-  const refreshStatus = async (): Promise<void> => {
-    setStatusBusy(true)
-    try {
-      const status = await getEvidenceStatus(account.subjectKey, goal.id)
-      if (status !== null) {
-        setEvidence(status)
-        setReceiptId(status.receiptId)
-      }
-    } catch (error) {
-      if (error instanceof ApiClientError || error instanceof ApiNetworkError) {
-        setMessage({
-          kind: "error",
-          text: "검토 상태를 확인하지 못했습니다. 나중에 다시 확인하세요.",
-        })
-        return
-      }
-      throw error
-    } finally {
-      setStatusBusy(false)
     }
   }
 
@@ -206,18 +215,23 @@ export function useEvidenceCapture({ account, goal, online }: EvidenceCaptureOpt
     setCaptureClosed(false)
     setChallenge(null)
     setChallengeExpired(false)
-    setEvidence(null)
+    status.clear()
     setMessage(null)
     setPhoto(null)
-    setReceiptId(null)
+    setTransportRetry(false)
+    setUploadContinuation(null)
+    setUploadProgress(null)
   }
 
   const submissionOpen = goal.state === "evidence_open" && !captureClosed
   return {
     actions: {
-      abortUpload: () => abortRef.current?.abort(),
+      abortUpload: () => {
+        cancelRequestedRef.current = true
+        abortRef.current?.abort()
+      },
       beginChallenge,
-      refreshStatus,
+      refreshStatus: status.refresh,
       resetForResubmission,
       selectPhoto,
       setCameraMessage: (text: string | null) =>
@@ -231,16 +245,17 @@ export function useEvidenceCapture({ account, goal, online }: EvidenceCaptureOpt
       challenge,
       challengeExpired,
       consent,
-      evidence,
-      message,
+      evidence: status.evidence,
+      message: message ?? status.message,
       online,
       photo,
       preparing,
-      receiptId,
+      receiptId: status.receiptId,
       remainingSeconds,
-      statusBusy,
+      statusBusy: status.statusBusy,
       submissionOpen,
       transportRetry,
+      uploadProgress,
       uploading,
     },
   }

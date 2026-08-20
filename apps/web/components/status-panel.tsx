@@ -8,6 +8,7 @@ type StatusPanelState =
 type StatusPanelProps = {
   readonly action: ReactNode
   readonly children: ReactNode
+  readonly className?: string
   readonly heading: string
   readonly state: StatusPanelState
 }
@@ -33,9 +34,12 @@ function statusClassName(state: StatusPanelState): string {
   }
 }
 
-export function StatusPanel({ action, children, heading, state }: StatusPanelProps) {
+export function StatusPanel({ action, children, className, heading, state }: StatusPanelProps) {
   return (
-    <section className="statusPanel" aria-labelledby={`status-${state.kind}`}>
+    <section
+      className={className === undefined ? "statusPanel" : `statusPanel ${className}`}
+      aria-labelledby={`status-${state.kind}`}
+    >
       <p className={statusClassName(state)}>{state.label}</p>
       <h2 id={`status-${state.kind}`}>{heading}</h2>
       <div className="panelCopy">{children}</div>

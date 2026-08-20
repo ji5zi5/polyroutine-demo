@@ -30,9 +30,7 @@ export function EvidencePhotoInput({
   const openCamera = async (): Promise<void> => {
     onCameraMessage(null)
     if (navigator.mediaDevices?.getUserMedia === undefined) {
-      onCameraMessage(
-        "이 브라우저에서는 카메라를 열 수 없습니다. 파일 선택으로 계속할 수 있습니다.",
-      )
+      onCameraMessage("이 브라우저에서는 카메라를 열 수 없어요. 사진 선택으로 계속할 수 있어요.")
       return
     }
     setCameraBusy(true)
@@ -50,11 +48,11 @@ export function EvidencePhotoInput({
     } catch (error) {
       stopCamera()
       if (error instanceof DOMException && error.name === "NotAllowedError") {
-        onCameraMessage("카메라 권한이 허용되지 않았습니다. 파일 선택으로 계속할 수 있습니다.")
+        onCameraMessage("카메라 권한이 없어요. 사진 선택으로 계속할 수 있어요.")
         return
       }
       if (error instanceof DOMException || error instanceof TypeError) {
-        onCameraMessage("카메라를 열지 못했습니다. 파일 선택으로 계속할 수 있습니다.")
+        onCameraMessage("카메라를 열지 못했어요. 사진 선택으로 계속할 수 있어요.")
         return
       }
       throw error
@@ -66,7 +64,7 @@ export function EvidencePhotoInput({
   const capturePhoto = async (): Promise<void> => {
     const video = videoRef.current
     if (video === null || video.videoWidth === 0 || video.videoHeight === 0) {
-      onCameraMessage("카메라 화면이 아직 준비되지 않았습니다. 다시 촬영해 주세요.")
+      onCameraMessage("카메라 화면을 준비하고 있어요. 잠시 뒤 다시 촬영해 주세요.")
       return
     }
     const canvas = document.createElement("canvas")
@@ -74,7 +72,7 @@ export function EvidencePhotoInput({
     canvas.height = video.videoHeight
     const context = canvas.getContext("2d")
     if (context === null) {
-      onCameraMessage("사진 프레임을 만들지 못했습니다. 파일 선택으로 계속할 수 있습니다.")
+      onCameraMessage("사진 프레임을 만들지 못했어요. 사진 선택으로 계속할 수 있어요.")
       return
     }
     context.drawImage(video, 0, 0)
@@ -82,7 +80,7 @@ export function EvidencePhotoInput({
       canvas.toBlob(resolve, "image/jpeg", 0.9),
     )
     if (blob === null) {
-      onCameraMessage("사진 파일을 만들지 못했습니다. 파일 선택으로 계속할 수 있습니다.")
+      onCameraMessage("사진 파일을 만들지 못했어요. 사진 선택으로 계속할 수 있어요.")
       return
     }
     onPhoto(new File([blob], "today-study-note.jpg", { type: blob.type }))
@@ -98,11 +96,16 @@ export function EvidencePhotoInput({
   return (
     <div className="stack">
       <div className="captureActions">
-        <button disabled={disabled || cameraBusy} onClick={() => void openCamera()} type="button">
+        <button
+          className="buttonQuiet"
+          disabled={disabled || cameraBusy}
+          onClick={() => void openCamera()}
+          type="button"
+        >
           {cameraBusy ? "카메라 확인 중" : "카메라 열기"}
         </button>
         <label className="quietLink captureFileLabel">
-          사진 파일 선택
+          사진 선택하기
           <input
             accept="image/jpeg,image/png,image/webp"
             aria-label="학습 노트 사진 선택"
@@ -115,14 +118,13 @@ export function EvidencePhotoInput({
         </label>
       </div>
       <p className="formHelper">
-        카메라 선택은 기기 편의 기능일 뿐 실제 학습 완료, 사진 진위, 실시간 촬영을 증명하지
-        않습니다.
+        카메라 선택은 기기 편의 기능일 뿐 실제 학습 완료, 사진 진위, 실시간 촬영을 증명하지 않아요.
       </p>
       <div className="captureCamera" hidden={!cameraActive}>
         <video aria-label="카메라 미리보기" muted playsInline ref={videoRef} />
         <div className="captureActions">
           <button onClick={() => void capturePhoto()} type="button">
-            이 화면 촬영
+            이 화면 촬영하기
           </button>
           <button className="buttonQuiet" onClick={stopCamera} type="button">
             카메라 닫기

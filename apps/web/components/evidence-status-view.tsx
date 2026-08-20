@@ -2,11 +2,11 @@ import type { EvidenceStatus } from "../lib/contracts"
 import { StatusPanel } from "./status-panel"
 
 const reasonCopy = {
-  challenge_not_visible: "현재 서버 코드가 사진에서 확인되지 않았습니다.",
-  image_unreadable: "흐림·빛 반사·잘림 때문에 안내 항목을 확인하기 어려웠습니다.",
-  notes_insufficient: "당일 학습 노트가 요구한 줄 수만큼 확인되지 않았습니다.",
-  recipe_mismatch: "사진이 안내된 한 프레임 구성을 충족하지 않았습니다.",
-  review_unavailable: "운영 검토를 완료하지 못했습니다. 사진 내용이 실패로 판정된 것은 아닙니다.",
+  challenge_not_visible: "현재 서버 코드를 사진에서 확인하지 못했어요.",
+  image_unreadable: "흐림·빛 반사·잘림 때문에 안내 항목을 확인하기 어려웠어요.",
+  notes_insufficient: "당일 학습 노트를 필요한 줄 수만큼 확인하지 못했어요.",
+  recipe_mismatch: "사진에서 안내한 한 프레임 구성을 확인하지 못했어요.",
+  review_unavailable: "운영 검토를 마치지 못했어요. 사진 내용이 실패로 판정된 것은 아니에요.",
 } satisfies Record<NonNullable<EvidenceStatus["reasonCode"]>, string>
 
 type EvidenceStatusViewProps = {
@@ -37,17 +37,18 @@ export function EvidenceStatusView({
       <StatusPanel
         action={
           <div className="captureActions">
-            <button className="buttonQuiet" disabled={busy} onClick={onRefresh} type="button">
-              {busy ? "상태 확인 중" : "검토 상태 새로고침"}
+            <button disabled={busy} onClick={onRefresh} type="button">
+              {busy ? "상태 확인 중" : "검토 상태 확인하기"}
             </button>
             <PolicyLink />
           </div>
         }
-        heading="사진 영수증이 접수되었습니다"
+        className="evidenceStatusPanel"
+        heading="사진을 접수했어요"
         state={{ kind: "pending", label: "운영 검토 대기" }}
       >
-        <p>서버 영수증 {receiptId}을 받았습니다.</p>
-        <p>검토가 끝날 때까지 pending이며 완료 시간은 약속하지 않습니다.</p>
+        <p>서버 영수증 {receiptId}을 받았어요.</p>
+        <p>검토가 끝날 때까지 pending이에요. 완료 시간은 약속하지 않아요.</p>
       </StatusPanel>
     )
   }
@@ -56,12 +57,13 @@ export function EvidenceStatusView({
     return (
       <StatusPanel
         action={<PolicyLink />}
-        heading="안내된 사진 항목이 확인되었습니다"
+        className="evidenceStatusPanel"
+        heading="사진 항목을 확인했어요"
         state={{ kind: "ready", label: "검토 결과 · 확인" }}
       >
         <p>
-          운영 검토는 사진 속 레시피 항목만 확인합니다. 실제 학습 완료, 사진 진위, 실시간 촬영을
-          증명하지 않습니다.
+          운영 검토는 사진 속 레시피 항목만 확인해요. 실제 학습 완료, 사진 진위, 실시간 촬영을
+          증명하지 않아요.
         </p>
       </StatusPanel>
     )
@@ -69,8 +71,8 @@ export function EvidenceStatusView({
 
   const fallback =
     evidence.state === "rejected"
-      ? "안내된 사진 항목을 확인하지 못했습니다."
-      : "사진만으로 안내 항목을 확인하기 어려웠습니다."
+      ? "안내한 사진 항목을 확인하지 못했어요."
+      : "사진만으로 안내 항목을 확인하기 어려워요."
   const copy = evidence.reasonCode === null ? fallback : reasonCopy[evidence.reasonCode]
   return (
     <StatusPanel
@@ -78,16 +80,17 @@ export function EvidenceStatusView({
         <div className="captureActions">
           {evidence.canResubmit ? (
             <button onClick={onResubmit} type="button">
-              새 코드로 다시 제출
+              새 코드로 다시 제출하기
             </button>
           ) : null}
           <PolicyLink />
         </div>
       }
+      className="evidenceStatusPanel"
       heading={
         evidence.state === "rejected"
-          ? "안내 항목이 확인되지 않았습니다"
-          : "사진만으로 확인하기 어려웠습니다"
+          ? "안내 항목을 확인하지 못했어요"
+          : "사진만으로 확인하기 어려워요"
       }
       state={{
         kind: evidence.state === "rejected" ? "error" : "pending",
@@ -96,9 +99,9 @@ export function EvidenceStatusView({
     >
       <p>{copy}</p>
       {evidence.attemptsRemaining === 0 ? (
-        <p>두 번의 제출 기회를 모두 사용했습니다. 같은 사진을 다시 보내지 않습니다.</p>
+        <p>두 번의 제출 기회를 모두 사용했어요. 같은 사진은 다시 보내지 않아요.</p>
       ) : (
-        <p>서버 마감 전에 한 번 더 새 코드와 새 사진으로 제출할 수 있습니다.</p>
+        <p>서버 마감 전에 새 코드와 새 사진으로 한 번 더 제출할 수 있어요.</p>
       )}
     </StatusPanel>
   )

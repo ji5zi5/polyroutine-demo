@@ -7,9 +7,11 @@ import {
   type EvidenceChallenge,
   type EvidenceReceipt,
   type EvidenceStatus,
+  type EvidenceUploadTarget,
   evidenceChallengeSchema,
   evidenceReceiptSchema,
   evidenceStatusResponseSchema,
+  evidenceUploadTargetSchema,
   type Goal,
   goalSchema,
   type PredictionFeed,
@@ -198,23 +200,52 @@ type EvidenceUploadRequest = {
   readonly subjectKey: string
 }
 
-export async function uploadEvidence(
+export async function prepareEvidenceUpload(
   input: EvidenceUploadRequest,
   signal: AbortSignal,
-): Promise<EvidenceReceipt> {
-  const bytes = await input.file.arrayBuffer()
+): Promise<EvidenceUploadTarget> {
   return parseResponse(
-    http.post(`v1/goals/${input.goalId}/evidence`, {
-      body: bytes,
+    http.post(`v1/goals/${input.goalId}/evidence/presign`, {
       headers: {
-        "content-type": input.file.type,
         "idempotency-key": input.idempotencyKey,
-        "x-evidence-challenge": input.challengeCode,
         "x-subject-key": input.subjectKey,
+      },
+      json: {
+        byteSize: input.file.size,
+        challengeCode: input.challengeCode,
+        contentType: input.file.type,
       },
       signal,
     }),
+    evidenceUploadTargetSchema,
+  )
+}
+
+export async function completeEvidenceUpload(
+  input: Omit<EvidenceUploadRequest, "file" | "idempotencyKey"> & {
+    readonly uploadId: string
+  },
+  signal: AbortSignal,
+): Promise<EvidenceReceipt> {
+  return parseResponse(
+    http.post(`v1/goals/${input.goalId}/evidence/complete`, {
+      headers: { "x-subject-key": input.subjectKey },
+      json: { challengeCode: input.challengeCode, uploadId: input.uploadId },
+      signal,
+    }),
     evidenceReceiptSchema,
+  )
+}
+
+export async function cancelEvidenceUpload(
+  subjectKey: string,
+  goalId: string,
+  uploadId: string,
+): Promise<void> {
+  await ensureSuccess(
+    http.delete(`v1/goals/${goalId}/evidence/uploads/${uploadId}`, {
+      headers: { "x-subject-key": subjectKey },
+    }),
   )
 }
 
