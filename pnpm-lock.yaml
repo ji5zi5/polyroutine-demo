@@ -168,6 +168,9 @@ importers:
 
   packages/testing:
     dependencies:
+      '@polyroutine/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@testcontainers/postgresql':
         specifier: 12.1.0
         version: 12.1.0

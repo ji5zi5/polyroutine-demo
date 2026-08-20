@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto"
-import type { EvidenceObject, EvidenceObjectKey, EvidenceObjectStore } from "@polyroutine/contracts"
 import { createDatabase, migrateUp } from "@polyroutine/db"
-import { startTestPostgres, type TestPostgres } from "@polyroutine/testing"
+import {
+  ContractEvidenceObjectStore,
+  startTestPostgres,
+  type TestPostgres,
+} from "@polyroutine/testing"
 import type { FastifyInstance } from "fastify"
 import { request } from "undici"
 import { createServer } from "../src/app.js"
@@ -12,34 +15,6 @@ export const PNG = Buffer.from(
 )
 export const OWNER = "evidence-owner"
 export const OTHER_OWNER = "other-owner"
-
-class MemoryEvidenceStore implements EvidenceObjectStore {
-  readonly objects = new Map<EvidenceObjectKey, EvidenceObject>()
-  readonly signedUrls = new Map<string, Date>()
-  failDelete = false
-  failPut = false
-
-  async delete(key: EvidenceObjectKey): Promise<void> {
-    if (this.failDelete) throw new TypeError("object deletion unavailable")
-    this.objects.delete(key)
-  }
-
-  isSignedUrlValid(url: string, now: Date): boolean {
-    const expiresAt = this.signedUrls.get(url)
-    return expiresAt !== undefined && now < expiresAt
-  }
-
-  async signRead(key: EvidenceObjectKey, expiresAt: Date): Promise<string> {
-    const url = `https://objects.test/signed/${encodeURIComponent(key)}?expires=${expiresAt.getTime()}`
-    this.signedUrls.set(url, expiresAt)
-    return url
-  }
-
-  async put(object: EvidenceObject): Promise<void> {
-    if (this.failPut) throw new TypeError("object storage unavailable")
-    this.objects.set(object.key, object)
-  }
-}
 
 type SendOptions = {
   readonly body?: Uint8Array
@@ -71,7 +46,7 @@ export class EvidenceHarness {
   now = new Date("2026-08-19T01:00:00.000Z")
   postgres: TestPostgres | undefined
   server: FastifyInstance | undefined
-  readonly store = new MemoryEvidenceStore()
+  readonly store = new ContractEvidenceObjectStore()
   readonly uuidValues: string[] = []
 
   constructor(private readonly moderationOptions: ModerationHarnessOptions = {}) {}

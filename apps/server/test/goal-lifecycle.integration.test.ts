@@ -1,7 +1,7 @@
 import type { EvidenceObjectStore } from "@polyroutine/contracts"
 import { createDatabase, migrateUp } from "@polyroutine/db"
 import type { TestPostgres } from "@polyroutine/testing"
-import { startTestPostgres } from "@polyroutine/testing"
+import { AsyncBarrier, startTestPostgres } from "@polyroutine/testing"
 import type { FastifyInstance } from "fastify"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
 import { createServer } from "../src/app.js"
@@ -106,15 +106,20 @@ describe("goal-lifecycle integration", () => {
     expect(malformed.json()).toMatchObject({ code: "INVALID_GOAL_REQUEST" })
   })
 
-  it("allows only one goal per owner local day under concurrent creation", async () => {
+  it("allows only one goal per owner local day when 100 transactions release together", async () => {
     // Given
-    const requests = [createGoal(owners[0]), createGoal(owners[0])]
+    const barrier = new AsyncBarrier(100)
+    const requests = Array.from({ length: 100 }, async () => {
+      await barrier.arriveAndWait()
+      return createGoal(owners[0])
+    })
 
     // When
     const responses = await Promise.all(requests)
 
     // Then
-    expect(responses.map(({ statusCode }) => statusCode).sort()).toEqual([201, 409])
+    expect(responses.filter(({ statusCode }) => statusCode === 201)).toHaveLength(1)
+    expect(responses.filter(({ statusCode }) => statusCode === 409)).toHaveLength(99)
   })
 
   it("blocks owner update and cancellation after the first effective prediction", async () => {
@@ -262,7 +267,7 @@ describe("goal-lifecycle integration", () => {
     // Then
     const audits = await handle.pool.query<{ readonly to_state: string }>(
       `select payload->>'terminalState' as to_state from analytics_events
-       where payload->>'goalId' = $1 order by occurred_at`,
+       where event_name = 'goal_terminal' and payload->>'goalId' = $1 order by occurred_at`,
       [goalId],
     )
     expect(audits.rows.map(({ to_state }) => to_state)).toEqual(["completed"])

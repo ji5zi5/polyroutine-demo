@@ -1,6 +1,12 @@
 import type { StartedPostgreSqlContainer } from "@testcontainers/postgresql"
 import { PostgreSqlContainer } from "@testcontainers/postgresql"
 
+export { AsyncBarrier } from "./concurrency.js"
+export {
+  ContractEvidenceObjectStore,
+  ObjectStoreContractError,
+} from "./evidence-object-store.js"
+
 export type TestPostgres = {
   readonly connectionString: string
   readonly container: StartedPostgreSqlContainer

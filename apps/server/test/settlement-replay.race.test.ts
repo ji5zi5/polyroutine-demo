@@ -1,3 +1,4 @@
+import { AsyncBarrier } from "@polyroutine/testing"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
 import { OWNER, SettlementHarness } from "./settlement-test-support.js"
 
@@ -33,17 +34,19 @@ describe("settlement replay races", () => {
   it("settles 100 duplicate operator callbacks exactly once", async () => {
     // Given
     const fixture = await acceptedFixture()
+    const barrier = new AsyncBarrier(100)
 
     // When
     const responses = await Promise.all(
-      Array.from({ length: 100 }, () =>
-        harness.decide(
+      Array.from({ length: 100 }, async () => {
+        await barrier.arriveAndWait()
+        return harness.decide(
           fixture.reviewId,
           fixture.leaseToken,
           { verdict: "accepted" },
           "same-callback",
-        ),
-      ),
+        )
+      }),
     )
 
     // Then
@@ -75,10 +78,14 @@ describe("settlement replay races", () => {
       "accepted-before-correction",
     )
     expect(accepted.statusCode).toBe(200)
+    const barrier = new AsyncBarrier(100)
 
     // When
     const responses = await Promise.all(
-      Array.from({ length: 100 }, () => correctionRequest(fixture.goalId)),
+      Array.from({ length: 100 }, async () => {
+        await barrier.arriveAndWait()
+        return correctionRequest(fixture.goalId)
+      }),
     )
 
     // Then

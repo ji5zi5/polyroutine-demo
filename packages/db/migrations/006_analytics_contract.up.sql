@@ -40,7 +40,8 @@ $$;
 
 create or replace function reject_event_mutation() returns trigger language plpgsql as $$
 begin
-  if tg_table_name = 'analytics_events' and old.published_at is null and new.published_at is not null and
+  if tg_table_name = 'analytics_events' and to_jsonb(old)->>'published_at' is null and
+    to_jsonb(new)->>'published_at' is not null and
     to_jsonb(new) - 'published_at' = to_jsonb(old) - 'published_at' then
     return new;
   end if;

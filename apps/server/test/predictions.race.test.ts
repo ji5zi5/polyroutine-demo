@@ -1,7 +1,7 @@
 import type { EvidenceObjectStore } from "@polyroutine/contracts"
 import { createDatabase, migrateUp } from "@polyroutine/db"
 import type { TestPostgres } from "@polyroutine/testing"
-import { startTestPostgres } from "@polyroutine/testing"
+import { AsyncBarrier, startTestPostgres } from "@polyroutine/testing"
 import type { FastifyInstance } from "fastify"
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest"
 import { createServer } from "../src/app.js"
@@ -12,14 +12,20 @@ const evidenceObjectStore: EvidenceObjectStore = {
 }
 const goalId = "00000000-0000-4000-8000-000000000601"
 
-function predictionRequest(
-  server: FastifyInstance,
-  index: number,
-  idempotencyKey = `race-${index}`,
-) {
+type PredictionRequestOptions = {
+  readonly barrier: AsyncBarrier
+  readonly idempotencyKey?: string
+  readonly index: number
+}
+
+async function predictionRequest(server: FastifyInstance, options: PredictionRequestOptions) {
+  await options.barrier.arriveAndWait()
   return server.inject({
-    body: { choice: index % 2 === 0 ? "yes" : "no" },
-    headers: { "idempotency-key": idempotencyKey, "x-subject-key": "predictor" },
+    body: { choice: options.index % 2 === 0 ? "yes" : "no" },
+    headers: {
+      "idempotency-key": options.idempotencyKey ?? `race-${options.index}`,
+      "x-subject-key": "predictor",
+    },
     method: "POST",
     url: `/v1/predictions/${goalId}`,
   })
@@ -75,10 +81,11 @@ describe("atomic prediction insert races", () => {
     const app = server
     const handle = database
     if (app === undefined || handle === undefined) throw new TypeError("fixtures are unavailable")
+    const barrier = new AsyncBarrier(100)
 
     // When
     const responses = await Promise.all(
-      Array.from({ length: 100 }, (_, index) => predictionRequest(app, index)),
+      Array.from({ length: 100 }, (_, index) => predictionRequest(app, { barrier, index })),
     )
 
     // Then
@@ -108,10 +115,13 @@ describe("atomic prediction insert races", () => {
     const app = server
     const handle = database
     if (app === undefined || handle === undefined) throw new TypeError("fixtures are unavailable")
+    const barrier = new AsyncBarrier(100)
 
     // When
     const responses = await Promise.all(
-      Array.from({ length: 100 }, () => predictionRequest(app, 0, "same-request")),
+      Array.from({ length: 100 }, () =>
+        predictionRequest(app, { barrier, idempotencyKey: "same-request", index: 0 }),
+      ),
     )
 
     // Then
@@ -133,10 +143,11 @@ describe("atomic prediction insert races", () => {
       "update goals set prediction_cutoff_at = clock_timestamp() where id = $1",
       [goalId],
     )
+    const barrier = new AsyncBarrier(100)
 
     // When
     const responses = await Promise.all(
-      Array.from({ length: 100 }, (_, index) => predictionRequest(app, index)),
+      Array.from({ length: 100 }, (_, index) => predictionRequest(app, { barrier, index })),
     )
 
     // Then
