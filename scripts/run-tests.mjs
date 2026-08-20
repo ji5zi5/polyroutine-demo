@@ -34,18 +34,29 @@ switch (mode) {
       run(process.execPath, [packageManagerPath, "exec", "vitest", "run", filter])
     }
     break
-  case "integration":
-    run(process.execPath, [
-      packageManagerPath,
-      "exec",
-      "vitest",
-      "run",
-      "--config",
-      "vitest.integration.config.ts",
-      ...(reporter === undefined ? [] : [reporter]),
-      filter === undefined ? "apps/server/test" : `apps/server/test/${filter}.integration.test.ts`,
-    ])
+  case "integration": {
+    const targets =
+      filter === "settlement"
+        ? ["settlement.integration.test.ts", "settlement-failures.integration.test.ts"]
+        : [
+            filter === undefined
+              ? "apps/server/test"
+              : `apps/server/test/${filter}.integration.test.ts`,
+          ]
+    for (const target of targets) {
+      run(process.execPath, [
+        packageManagerPath,
+        "exec",
+        "vitest",
+        "run",
+        "--config",
+        "vitest.integration.config.ts",
+        ...(reporter === undefined ? [] : [reporter]),
+        target.startsWith("apps/") ? target : `apps/server/test/${target}`,
+      ])
+    }
     break
+  }
   case "race":
     run(process.execPath, [
       "--test",
@@ -64,7 +75,26 @@ switch (mode) {
         ...(seed === undefined ? [] : ["--sequence.shuffle", `--sequence.seed=${seed}`]),
         "apps/server/test/predictions.race.test.ts",
       ])
-    } else {
+    }
+    if (filter === "settlement-replay" || filter === undefined) {
+      run(process.execPath, [
+        packageManagerPath,
+        "exec",
+        "vitest",
+        "run",
+        "--config",
+        "vitest.integration.config.ts",
+        ...(reporter === undefined ? [] : [reporter]),
+        ...(seed === undefined ? [] : ["--sequence.shuffle", `--sequence.seed=${seed}`]),
+        "apps/server/test/settlement-replay.race.test.ts",
+      ])
+    }
+    if (
+      filter !== undefined &&
+      filter !== "predictions" &&
+      filter !== "prediction-insert" &&
+      filter !== "settlement-replay"
+    ) {
       run(process.execPath, [packageManagerPath, "exec", "vitest", "run"])
     }
     break

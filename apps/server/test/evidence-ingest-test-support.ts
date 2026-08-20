@@ -1,10 +1,5 @@
 import { randomUUID } from "node:crypto"
-import type {
-  EvidenceObject,
-  EvidenceObjectKey,
-  EvidenceObjectStore,
-  EvidenceVerifier,
-} from "@polyroutine/contracts"
+import type { EvidenceObject, EvidenceObjectKey, EvidenceObjectStore } from "@polyroutine/contracts"
 import { createDatabase, migrateUp } from "@polyroutine/db"
 import { startTestPostgres, type TestPostgres } from "@polyroutine/testing"
 import type { FastifyInstance } from "fastify"
@@ -78,13 +73,6 @@ export class EvidenceHarness {
   server: FastifyInstance | undefined
   readonly store = new MemoryEvidenceStore()
   readonly uuidValues: string[] = []
-  verifierCalls = 0
-  readonly verifier: EvidenceVerifier = {
-    review: async () => {
-      this.verifierCalls += 1
-      return { kind: "operator_review_required" }
-    },
-  }
 
   constructor(private readonly moderationOptions: ModerationHarnessOptions = {}) {}
 
@@ -96,7 +84,6 @@ export class EvidenceHarness {
       clock: { now: () => new Date(this.now) },
       database: this.database,
       evidenceObjectStore: this.store,
-      evidenceVerifier: this.verifier,
       moderation: { ...this.moderationOptions, signer: this.store },
       uuid: { create: () => this.uuidValues.shift() ?? randomUUID() },
     })
@@ -120,7 +107,6 @@ export class EvidenceHarness {
     this.store.objects.clear()
     this.store.signedUrls.clear()
     this.uuidValues.length = 0
-    this.verifierCalls = 0
     await database.pool.query("truncate users cascade")
     await database.pool.query("truncate analytics_events")
     await database.pool.query("truncate operator_roles, moderation_retention_aggregates")

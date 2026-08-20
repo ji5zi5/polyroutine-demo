@@ -62,7 +62,6 @@ describe("evidence-ingest integration", () => {
           "select event_name from analytics_events where business_key like 'evidence:%:received'",
         ),
     ).toMatchObject({ rows: [{ event_name: "evidence_received" }] })
-    expect(harness.verifierCalls).toBe(0)
   })
 
   it("rejects an executable disguised as PNG without persisting it", async () => {

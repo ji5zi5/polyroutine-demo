@@ -1,15 +1,13 @@
-import type {
-  Clock,
-  EvidenceObjectStore,
-  EvidenceVerifier,
-  UuidFactory,
-} from "@polyroutine/contracts"
+import type { Clock, EvidenceObjectStore, UuidFactory } from "@polyroutine/contracts"
 import type { DatabaseHandle } from "@polyroutine/db"
 import Fastify from "fastify"
 import type { AccountAuditSink } from "./modules/accounts/index.js"
 import { registerAccountsRoutes } from "./modules/accounts/index.js"
 import { registerEvidenceRoutes } from "./modules/evidence/routes.js"
 import { createEvidenceService } from "./modules/evidence/service.js"
+import type { ReviewPolicy } from "./modules/evidence/verification/contract.js"
+import { registerVerificationRoutes } from "./modules/evidence/verification/routes.js"
+import { createVerificationService } from "./modules/evidence/verification/service.js"
 import { registerGoalRoutes } from "./modules/goals/routes.js"
 import { createGoalService } from "./modules/goals/service.js"
 import { serverModules } from "./modules/index.js"
@@ -17,6 +15,8 @@ import { registerModerationRoutes } from "./modules/moderation/routes.js"
 import { createModerationService, type EvidenceUrlSigner } from "./modules/moderation/service.js"
 import { registerPredictionRoutes } from "./modules/predictions/routes.js"
 import { createPredictionService } from "./modules/predictions/service.js"
+import { registerSettlementRoutes } from "./modules/settlement/routes.js"
+import { createSettlementService } from "./modules/settlement/service.js"
 
 export type ServerOptions = {
   readonly accounts?: {
@@ -27,20 +27,19 @@ export type ServerOptions = {
   readonly clock: Clock
   readonly database: DatabaseHandle
   readonly evidenceObjectStore: EvidenceObjectStore
-  readonly evidenceVerifier: EvidenceVerifier
   readonly moderation?: {
     readonly claimLeaseMs?: number
     readonly queueLimit?: number
     readonly reviewSlaMs?: number
     readonly signer: EvidenceUrlSigner
   }
+  readonly operatorReviewPolicy?: ReviewPolicy
   readonly uuid: UuidFactory
 }
 
 export function createServer(options: ServerOptions) {
   const app = Fastify()
   app.decorate("evidenceObjectStore", options.evidenceObjectStore)
-  app.decorate("evidenceVerifier", options.evidenceVerifier)
   if (options.accounts !== undefined) {
     registerAccountsRoutes(app, {
       audit: options.accounts.audit,
@@ -97,6 +96,21 @@ export function createServer(options: ServerOptions) {
       }),
     )
   }
+  registerVerificationRoutes(
+    app,
+    createVerificationService({
+      clock: options.clock,
+      database: options.database,
+      ...(options.operatorReviewPolicy === undefined
+        ? {}
+        : { policy: options.operatorReviewPolicy }),
+      uuid: options.uuid,
+    }),
+  )
+  registerSettlementRoutes(
+    app,
+    createSettlementService({ clock: options.clock, database: options.database }),
+  )
 
   app.get("/health/live", async () => ({
     checkedAt: options.clock.now().toISOString(),

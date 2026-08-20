@@ -1,13 +1,8 @@
 import { randomUUID } from "node:crypto"
-import type { EvidenceVerifier } from "@polyroutine/contracts"
 import { createDatabase } from "@polyroutine/db"
 import { createServer } from "./app.js"
 import type { RuntimeConfig } from "./config.js"
 import { S3EvidenceObjectStore } from "./evidence-object-store.js"
-
-const boundedOperatorVerifier: EvidenceVerifier = {
-  review: async () => ({ kind: "operator_review_required" }),
-}
 
 export function createRuntime(config: RuntimeConfig) {
   const database = createDatabase(config.DATABASE_URL)
@@ -27,7 +22,6 @@ export function createRuntime(config: RuntimeConfig) {
     clock: { now: () => new Date() },
     database,
     evidenceObjectStore,
-    evidenceVerifier: boundedOperatorVerifier,
     moderation: {
       claimLeaseMs: config.MODERATION_CLAIM_LEASE_SECONDS * 1_000,
       queueLimit: config.MODERATION_QUEUE_LIMIT,

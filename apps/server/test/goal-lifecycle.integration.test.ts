@@ -1,4 +1,4 @@
-import type { EvidenceObjectStore, EvidenceVerifier } from "@polyroutine/contracts"
+import type { EvidenceObjectStore } from "@polyroutine/contracts"
 import { createDatabase, migrateUp } from "@polyroutine/db"
 import type { TestPostgres } from "@polyroutine/testing"
 import { startTestPostgres } from "@polyroutine/testing"
@@ -13,10 +13,6 @@ const evidenceObjectStore: EvidenceObjectStore = {
   delete: async () => undefined,
   put: async () => undefined,
 }
-const evidenceVerifier: EvidenceVerifier = {
-  review: async () => ({ kind: "operator_review_required" }),
-}
-
 describe("goal-lifecycle integration", () => {
   let database: ReturnType<typeof createDatabase> | undefined
   let now = new Date("2026-08-19T00:00:00.000Z")
@@ -37,7 +33,6 @@ describe("goal-lifecycle integration", () => {
       clock: { now: () => new Date(now) },
       database,
       evidenceObjectStore,
-      evidenceVerifier,
       uuid: {
         create: () => `00000000-0000-4000-8000-${String(uuidSequence++).padStart(12, "0")}`,
       },
@@ -202,7 +197,7 @@ describe("goal-lifecycle integration", () => {
     expect(result.rows).toEqual([{ state: "evidence_open" }])
   })
 
-  it("converges accepted, final rejected, empty, and provider-failed evidence to terminals", async () => {
+  it("converges accepted, final rejected, empty, and unresolved evidence to terminals", async () => {
     // Given
     const handle = database
     if (handle === undefined) throw new TypeError("database fixture is unavailable")

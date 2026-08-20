@@ -34,7 +34,6 @@ export async function startAccountTestServer(database: DatabaseHandle): Promise<
     clock: { now: () => new Date("2026-08-19T00:00:00.000Z") },
     database,
     evidenceObjectStore: { delete: async () => undefined, put: async () => undefined },
-    evidenceVerifier: { review: async () => ({ kind: "operator_review_required" }) },
     uuid: { create: randomUUID },
   })
   const address = await server.listen({ host: "127.0.0.1", port: 0 })

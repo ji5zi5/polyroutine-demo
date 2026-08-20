@@ -1,4 +1,4 @@
-import type { EvidenceObjectStore, EvidenceVerifier } from "@polyroutine/contracts"
+import type { EvidenceObjectStore } from "@polyroutine/contracts"
 import { createDatabase, migrateUp } from "@polyroutine/db"
 import type { TestPostgres } from "@polyroutine/testing"
 import { startTestPostgres } from "@polyroutine/testing"
@@ -9,9 +9,6 @@ import { createServer } from "../src/app.js"
 const evidenceObjectStore: EvidenceObjectStore = {
   delete: async () => undefined,
   put: async () => undefined,
-}
-const evidenceVerifier: EvidenceVerifier = {
-  review: async () => ({ kind: "operator_review_required" }),
 }
 const goalId = "00000000-0000-4000-8000-000000000601"
 
@@ -41,7 +38,6 @@ describe("atomic prediction insert races", () => {
       clock: { now: () => new Date("2026-08-19T09:00:00.000Z") },
       database,
       evidenceObjectStore,
-      evidenceVerifier,
       uuid: { create: () => crypto.randomUUID() },
     })
     await server.ready()

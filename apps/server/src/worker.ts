@@ -1,13 +1,34 @@
+import { randomUUID } from "node:crypto"
+import { createDatabase } from "@polyroutine/db"
 import { PgBoss } from "pg-boss"
 import { ConfigurationError, parseConfig } from "./config.js"
+import { createVerificationService } from "./modules/evidence/verification/service.js"
+import { registerVerificationWorker } from "./modules/evidence/verification/worker.js"
 
 async function main(): Promise<void> {
   const config = parseConfig(process.env)
+  const database = createDatabase(config.DATABASE_URL)
   const boss = new PgBoss({ connectionString: config.DATABASE_URL })
-  await boss.start()
+  try {
+    await boss.start()
+    await registerVerificationWorker(
+      boss,
+      database,
+      createVerificationService({
+        clock: { now: () => new Date() },
+        database,
+        uuid: { create: randomUUID },
+      }),
+    )
+  } catch (error) {
+    await boss.stop({ graceful: false })
+    await database.destroy()
+    throw error
+  }
 
   const shutdown = async (): Promise<void> => {
     await boss.stop({ graceful: true, timeout: 30_000 })
+    await database.destroy()
   }
   process.once("SIGINT", () => void shutdown())
   process.once("SIGTERM", () => void shutdown())

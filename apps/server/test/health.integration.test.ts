@@ -1,6 +1,6 @@
 import { resolve } from "node:path"
 import { loadEnvFile } from "node:process"
-import type { EvidenceObjectStore, EvidenceVerifier } from "@polyroutine/contracts"
+import type { EvidenceObjectStore } from "@polyroutine/contracts"
 import { createDatabase } from "@polyroutine/db"
 import type { TestPostgres } from "@polyroutine/testing"
 import { startTestPostgres } from "@polyroutine/testing"
@@ -14,10 +14,6 @@ const evidenceObjectStore: EvidenceObjectStore = {
   delete: async () => undefined,
   put: async () => undefined,
 }
-const evidenceVerifier: EvidenceVerifier = {
-  review: async () => ({ kind: "operator_review_required" }),
-}
-
 describe("health integration", () => {
   let address = ""
   let database: ReturnType<typeof createDatabase> | undefined
@@ -33,7 +29,6 @@ describe("health integration", () => {
       clock: { now: () => new Date("2026-08-19T00:00:00.000Z") },
       database,
       evidenceObjectStore,
-      evidenceVerifier,
       uuid: { create: () => "00000000-0000-4000-8000-000000000001" },
     })
     address = await server.listen({ host: "127.0.0.1", port: 0 })

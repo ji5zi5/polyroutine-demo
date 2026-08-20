@@ -1,4 +1,5 @@
 import type { DatabaseHandle } from "@polyroutine/db"
+import { settleTerminalGoal } from "../settlement/reputation.js"
 
 type DatabaseClient = Pick<DatabaseHandle["pool"], "query">
 
@@ -27,6 +28,16 @@ async function applyTransition(
   transition: Transition,
   now: Date,
 ): Promise<void> {
+  if (transition.toState !== "evidence_open") {
+    await settleTerminalGoal({
+      actor: "scheduler",
+      client,
+      goalId: transition.goalId,
+      now,
+      state: transition.toState,
+    })
+    return
+  }
   const updated = await client.query<{ readonly id: string }>(
     "update goals set state = $1 where id = $2 and state = $3 returning id::text",
     [transition.toState, transition.goalId, transition.fromState],

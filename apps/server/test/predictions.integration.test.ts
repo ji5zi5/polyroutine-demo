@@ -1,4 +1,4 @@
-import type { EvidenceObjectStore, EvidenceVerifier } from "@polyroutine/contracts"
+import type { EvidenceObjectStore } from "@polyroutine/contracts"
 import { createDatabase, migrateUp } from "@polyroutine/db"
 import type { TestPostgres } from "@polyroutine/testing"
 import { startTestPostgres } from "@polyroutine/testing"
@@ -12,9 +12,6 @@ const owners = ["owner-a", "owner-b", "owner-c", "owner-d", "owner-e", "owner-f"
 const evidenceObjectStore: EvidenceObjectStore = {
   delete: async () => undefined,
   put: async () => undefined,
-}
-const evidenceVerifier: EvidenceVerifier = {
-  review: async () => ({ kind: "operator_review_required" }),
 }
 const cardSchema = z.strictObject({
   anonymousAlias: z.string().min(1),
@@ -54,7 +51,6 @@ describe("predictions integration", () => {
       clock: { now: () => new Date(now) },
       database,
       evidenceObjectStore,
-      evidenceVerifier,
       uuid: { create: () => crypto.randomUUID() },
     })
     await server.ready()
