@@ -7,6 +7,9 @@ publish = ".next"
 NODE_VERSION = "24"
 PNPM_VERSION = "10.34.5"
 
+[functions]
+directory = "netlify/functions"
+
 [[plugins]]
 package = "@netlify/plugin-nextjs"
 
