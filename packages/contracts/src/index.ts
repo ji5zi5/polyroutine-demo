@@ -1,4 +1,5 @@
 export * from "./domain/index.js"
+export * from "./evidence/recipe-v1.js"
 
 declare const evidenceObjectKeyBrand: unique symbol
 

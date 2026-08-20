@@ -8,6 +8,8 @@ import type { DatabaseHandle } from "@polyroutine/db"
 import Fastify from "fastify"
 import type { AccountAuditSink } from "./modules/accounts/index.js"
 import { registerAccountsRoutes } from "./modules/accounts/index.js"
+import { registerEvidenceRoutes } from "./modules/evidence/routes.js"
+import { createEvidenceService } from "./modules/evidence/service.js"
 import { registerGoalRoutes } from "./modules/goals/routes.js"
 import { createGoalService } from "./modules/goals/service.js"
 import { serverModules } from "./modules/index.js"
@@ -54,6 +56,15 @@ export function createServer(options: ServerOptions) {
     createPredictionService({
       clock: options.clock,
       database: options.database,
+      uuid: options.uuid,
+    }),
+  )
+  registerEvidenceRoutes(
+    app,
+    createEvidenceService({
+      clock: options.clock,
+      database: options.database,
+      objectStore: options.evidenceObjectStore,
       uuid: options.uuid,
     }),
   )
