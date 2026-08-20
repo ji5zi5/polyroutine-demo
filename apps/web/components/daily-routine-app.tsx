@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useSyncExternalStore } from "react"
-import { logout } from "../lib/api"
+import { deleteAccount, logout } from "../lib/api"
 import {
   clearStoredAccount,
   getServerStoredAccountSnapshot,
@@ -30,6 +30,10 @@ export function DailyRoutineApp() {
   return (
     <DailyDashboard
       account={account}
+      onDelete={async () => {
+        await deleteAccount(account)
+        clearStoredAccount()
+      }}
       onLogout={async () => {
         await logout(account)
         clearStoredAccount()

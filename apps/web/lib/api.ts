@@ -17,6 +17,7 @@ import {
   type PredictionFeed,
   predictionFeedSchema,
   predictionSchema,
+  type Today,
   todayResponseSchema,
 } from "./contracts"
 
@@ -129,12 +130,15 @@ export async function logout(account: Account): Promise<void> {
   await ensureSuccess(http.post("v1/accounts/logout", { headers: accountHeaders(account) }))
 }
 
-export async function getToday(subjectKey: string): Promise<Goal | null> {
-  const result = await parseResponse(
+export async function deleteAccount(account: Account): Promise<void> {
+  await ensureSuccess(http.delete("v1/accounts/me", { headers: accountHeaders(account) }))
+}
+
+export async function getToday(subjectKey: string): Promise<Today> {
+  return parseResponse(
     http.get("v1/goals/today", { headers: { "x-subject-key": subjectKey } }),
     todayResponseSchema,
   )
-  return result.goal
 }
 
 export async function createGoal(subjectKey: string, noteLineTarget: number): Promise<Goal> {

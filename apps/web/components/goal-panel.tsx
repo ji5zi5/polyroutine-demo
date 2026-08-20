@@ -60,9 +60,7 @@ export function GoalPanel({ busy, error, goal, historicalGoal, online, onCreate 
             <p className="eyebrow">오늘 하나만</p>
             <h2 id="goal-heading">오늘의 학습 약속</h2>
           </div>
-          <p>
-            자유 문구 대신 한 가지 안내를 따릅니다. 25분 학습하고 당일 노트를 사진 한 장에 남깁니다.
-          </p>
+          <p>한 가지 안내를 따라요. 25분 학습하고 당일 노트를 사진 한 장에 남겨요.</p>
           <form aria-busy={busy} className="stack" onSubmit={handleSubmit}>
             <FormField
               helper="최소 3줄, 최대 20줄"
@@ -101,7 +99,7 @@ export function GoalPanel({ busy, error, goal, historicalGoal, online, onCreate 
           </div>
           <p>
             25분 학습 후 오늘 날짜, 서버 코드, 학습 노트 {goal.fields.noteLineTarget}줄 이상을 한
-            장에 담습니다.
+            장에 담아요.
           </p>
           <dl className="deadlineList">
             <div className="deadlineRow">
@@ -123,11 +121,9 @@ export function GoalPanel({ busy, error, goal, historicalGoal, online, onCreate 
           </div>
           <p>
             25분 학습 후 오늘 날짜, 서버 코드, 학습 노트 {historicalGoal.fields.noteLineTarget}줄
-            이상을 한 장에 담는 목표였습니다.
+            이상을 한 장에 담는 목표였어요.
           </p>
-          <p className="formHelper">
-            서버가 확인했던 목표를 이 계정의 기기에 보관한 읽기 전용 기록입니다.
-          </p>
+          <p className="formHelper">서버가 확인한 목표를 이 기기에 보관한 읽기 전용 기록이에요.</p>
         </section>
       )}
     </>

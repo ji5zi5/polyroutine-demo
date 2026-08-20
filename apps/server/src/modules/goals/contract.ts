@@ -53,3 +53,27 @@ export type GoalView = {
     | "expired"
     | "cancelled"
 }
+
+export type ReputationEventView =
+  | { readonly eventKey: string; readonly kind: "completion"; readonly points: number }
+  | { readonly eventKey: string; readonly kind: "crowd"; readonly points: number }
+  | {
+      readonly correctedState: "cancelled" | "completed" | "expired" | "failed"
+      readonly eventKey: string
+      readonly kind: "correction"
+      readonly points: number
+      readonly reason: string
+    }
+
+export type DailyResultView = {
+  readonly crowd: { readonly no: number; readonly yes: number }
+  readonly effectiveState: "cancelled" | "completed" | "expired" | "failed"
+  readonly goal: GoalView
+  readonly reputationEvents: readonly ReputationEventView[]
+  readonly reputationTotal: number
+}
+
+export type TodayView = {
+  readonly goal: GoalView | null
+  readonly result: DailyResultView | null
+}

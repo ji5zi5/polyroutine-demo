@@ -1,4 +1,4 @@
-import type { ReactNode } from "react"
+import { type ReactNode, useId } from "react"
 
 type StatusPanelState =
   | { readonly kind: "ready"; readonly label: string }
@@ -35,13 +35,14 @@ function statusClassName(state: StatusPanelState): string {
 }
 
 export function StatusPanel({ action, children, className, heading, state }: StatusPanelProps) {
+  const headingId = useId()
   return (
     <section
       className={className === undefined ? "statusPanel" : `statusPanel ${className}`}
-      aria-labelledby={`status-${state.kind}`}
+      aria-labelledby={headingId}
     >
       <p className={statusClassName(state)}>{state.label}</p>
-      <h2 id={`status-${state.kind}`}>{heading}</h2>
+      <h2 id={headingId}>{heading}</h2>
       <div className="panelCopy">{children}</div>
       <div className="panelAction">{action}</div>
     </section>

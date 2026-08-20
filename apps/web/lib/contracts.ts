@@ -12,6 +12,12 @@ export const accountSchema = z.object({
 })
 export type Account = Readonly<z.infer<typeof accountSchema>>
 
+export const terminalGoalStateSchema = z.enum(["completed", "failed", "expired", "cancelled"])
+export const goalStateSchema = z.union([
+  z.enum(["prediction_open", "evidence_open"]),
+  terminalGoalStateSchema,
+])
+
 export const goalSchema = z.object({
   evidenceDeadlineAt: z.iso.datetime(),
   fields: z.object({
@@ -24,18 +30,37 @@ export const goalSchema = z.object({
   predictionCutoffAt: z.iso.datetime(),
   recipeId: z.literal("study_note_photo_v1"),
   recipeVersion: z.literal(1),
-  state: z.enum([
-    "prediction_open",
-    "evidence_open",
-    "completed",
-    "failed",
-    "expired",
-    "cancelled",
-  ]),
+  state: goalStateSchema,
 })
 export type Goal = Readonly<z.infer<typeof goalSchema>>
 
-export const todayResponseSchema = z.object({ goal: goalSchema.nullable() })
+export const reputationEventSchema = z.discriminatedUnion("kind", [
+  z.object({ eventKey: z.string().min(1), kind: z.literal("completion"), points: z.number().int() }),
+  z.object({ eventKey: z.string().min(1), kind: z.literal("crowd"), points: z.number().int() }),
+  z.object({
+    correctedState: terminalGoalStateSchema,
+    eventKey: z.string().min(1),
+    kind: z.literal("correction"),
+    points: z.number().int(),
+    reason: z.string().min(1),
+  }),
+])
+export type ReputationEvent = Readonly<z.infer<typeof reputationEventSchema>>
+
+export const dailyResultSchema = z.object({
+  crowd: z.object({ no: z.number().int().nonnegative(), yes: z.number().int().nonnegative() }),
+  effectiveState: terminalGoalStateSchema,
+  goal: goalSchema,
+  reputationEvents: z.array(reputationEventSchema),
+  reputationTotal: z.number().int(),
+})
+export type DailyResult = Readonly<z.infer<typeof dailyResultSchema>>
+
+export const todayResponseSchema = z.object({
+  goal: goalSchema.nullable(),
+  result: dailyResultSchema.nullable(),
+})
+export type Today = Readonly<z.infer<typeof todayResponseSchema>>
 
 export const feedCardSchema = z.object({
   anonymousAlias: z.string(),

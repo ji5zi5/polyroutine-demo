@@ -43,7 +43,7 @@ export function registerGoalRoutes(app: FastifyInstance, service: GoalService): 
   app.get("/v1/goals/today", async (request, reply) => {
     const subjectKey = parseSubject(request.headers["x-subject-key"], reply)
     if (subjectKey === null) return reply
-    return reply.send({ goal: await service.today(subjectKey) })
+    return reply.send(await service.today(subjectKey))
   })
 
   app.get<{ Params: GoalParams }>("/v1/goals/:goalId", async (request, reply) => {

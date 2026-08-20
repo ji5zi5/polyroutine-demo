@@ -2,9 +2,15 @@ import type { Clock, UuidFactory } from "@polyroutine/contracts"
 import type { DatabaseHandle } from "@polyroutine/db"
 import { analyticsCohortContext, appendAnalyticsEvent } from "../analytics/index.js"
 import { type CancelCommand, cancelGoal } from "./cancellation.js"
-import { GoalServiceError, type GoalView, type GuidedGoalFields } from "./contract.js"
+import {
+  GoalServiceError,
+  type GoalView,
+  type GuidedGoalFields,
+  type TodayView,
+} from "./contract.js"
 import { findOwnedGoal, type GoalRow, toGoalView } from "./records.js"
 import { calculateGoalSchedule, localDateAt } from "./schedule.js"
+import { readTodayView } from "./today.js"
 
 type GoalServiceOptions = {
   readonly clock: Clock
@@ -16,7 +22,7 @@ export type GoalService = {
   readonly cancel: (command: CancelCommand) => Promise<GoalView>
   readonly create: (subjectKey: string, fields: GuidedGoalFields) => Promise<GoalView>
   readonly get: (subjectKey: string, goalId: string) => Promise<GoalView>
-  readonly today: (subjectKey: string) => Promise<GoalView | null>
+  readonly today: (subjectKey: string) => Promise<TodayView>
   readonly update: (
     subjectKey: string,
     goalId: string,
@@ -103,14 +109,7 @@ export function createGoalService(options: GoalServiceOptions): GoalService {
       toGoalView(await findOwnedGoal(options.database, subjectKey, goalId)),
     today: async (subjectKey) => {
       const timezone = await timezoneFor(options.database, subjectKey)
-      const result = await options.database.pool.query<GoalRow>(
-        `select id::text, owner_subject_key, local_goal_date::text, recipe_id, recipe_version,
-           goal_copy, prediction_cutoff_at, evidence_deadline_at, state
-         from goals where owner_subject_key = $1 and local_goal_date = $2`,
-        [subjectKey, localDateAt(options.clock.now(), timezone)],
-      )
-      const row = result.rows[0]
-      return row === undefined ? null : toGoalView(row)
+      return readTodayView(options.database, subjectKey, localDateAt(options.clock.now(), timezone))
     },
     update: async (subjectKey, goalId, fields) => {
       const result = await options.database.pool.query<GoalRow>(

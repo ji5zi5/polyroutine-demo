@@ -12,9 +12,15 @@ type EvidenceCapturePanelProps = {
   readonly account: Account
   readonly goal: Goal
   readonly online: boolean
+  readonly onGoalRefresh: () => void
 }
 
-export function EvidenceCapturePanel({ account, goal, online }: EvidenceCapturePanelProps) {
+export function EvidenceCapturePanel({
+  account,
+  goal,
+  online,
+  onGoalRefresh,
+}: EvidenceCapturePanelProps) {
   const { actions, state } = useEvidenceCapture({ account, goal, online })
 
   if (state.receiptId !== null) {
@@ -22,7 +28,7 @@ export function EvidenceCapturePanel({ account, goal, online }: EvidenceCaptureP
       <EvidenceStatusView
         busy={state.statusBusy}
         evidence={state.evidence}
-        onRefresh={() => void actions.refreshStatus()}
+        onRefresh={() => void actions.refreshStatus().then(onGoalRefresh)}
         onResubmit={actions.resetForResubmission}
         receiptId={state.receiptId}
       />
@@ -120,6 +126,7 @@ export function EvidenceCapturePanel({ account, goal, online }: EvidenceCaptureP
       ) : null}
       <div className="captureActions">
         <button
+          className="buttonPrimary"
           disabled={
             !state.activeChallenge || state.photo === null || state.uploading || !state.online
           }

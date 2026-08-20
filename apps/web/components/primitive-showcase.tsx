@@ -107,7 +107,7 @@ export function PrimitiveShowcase() {
       <section className="showcaseSection" aria-labelledby="showcase-timeline">
         <h2 id="showcase-timeline">오늘의 흐름</h2>
         <div className="surfacePanel">
-          <TodayTimeline goalCreated predictionStarted={false} />
+          <TodayTimeline goalState="prediction_open" priorResultAvailable={false} />
         </div>
       </section>
 
