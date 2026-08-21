@@ -1,11 +1,11 @@
 "use client"
 
-import Image from "next/image"
-import { useEffect, useRef, useState } from "react"
-import { couponCatalog, type RewardProduct } from "../lib/demo-coupons"
+import { useState } from "react"
 import type { GoalAnalysisState } from "../lib/demo-goal-analysis/client/use-goal-analysis"
 import { GoalAnalysisRequestSchema } from "../lib/demo-goal-analysis/contract"
 import { analyzeGoalsFallback } from "../lib/demo-goal-analysis/fallback"
+import type { ValidAuthInput } from "../lib/demo-my/auth-input"
+import { selectMySummary } from "../lib/demo-my/my-view-model"
 import {
   type DemoAction,
   type DemoState,
@@ -15,22 +15,16 @@ import {
   selectPendingMarketPositions,
 } from "../lib/demo-state"
 import { GoalAnalysisPanel } from "./demo-goal-analysis/goal-analysis-panel"
+import { AuthGate } from "./demo-my/auth-gate"
+import { MySurface } from "./demo-my/my-surface"
 import { DemoPointsTab } from "./demo-points/demo-points-tab"
 import { demoPredictionOutcomes, predictionCards } from "./demo-prediction-cards"
 import { usePersistentDemoState } from "./demo-state/use-persistent-demo-state"
 import { DemoVerificationSurface } from "./demo-verification/demo-verification-surface"
 import { PredictionCard } from "./prediction-card"
 
-type RewardItem = RewardProduct
-type RewardId = RewardProduct["id"]
-
-function isRewardId(value: string): value is RewardId {
-  return couponCatalog.some((reward) => reward.id === value)
-}
-
 type DemoStep = "goal" | "listed" | "points" | "predict" | "profile" | "settle" | "verify"
 type DemoTab = "goal" | "points" | "predict" | "profile"
-type AuthMode = "login" | "signup"
 
 const demoNavItems = [
   { icon: "M5 12h14M12 5l7 7-7 7", label: "예측", tab: "predict" },
@@ -79,14 +73,6 @@ function DemoBottomNav({
   )
 }
 
-function RewardImage({ reward }: { readonly reward: RewardItem }) {
-  return (
-    <div className="rewardImage">
-      <Image alt={reward.name} fill sizes="152px" src={reward.imageSrc} unoptimized />
-    </div>
-  )
-}
-
 type PointsScreenProps = Readonly<{
   now: Date
   onNavigate: (tab: DemoTab) => void
@@ -124,58 +110,13 @@ function PointsScreen({
   )
 }
 
-function PurchasedRewards({
-  purchasedRewardIds,
-}: {
-  readonly purchasedRewardIds: readonly RewardId[]
-}) {
-  const purchasedRewards = couponCatalog
-    .map((reward) => ({
-      count: purchasedRewardIds.filter((id) => id === reward.id).length,
-      reward,
-    }))
-    .filter(({ count }) => count > 0)
-
-  return (
-    <section className="ownedRewards">
-      <h2>보유 쿠폰</h2>
-      {purchasedRewards.length === 0 ? (
-        <p className="ownedRewardsEmpty">아직 보유한 쿠폰이 없어요.</p>
-      ) : (
-        <div className="ownedRewardsList">
-          {purchasedRewards.map(({ count, reward }) => (
-            <article className="ownedReward" key={reward.id}>
-              <RewardImage reward={reward} />
-              <div>
-                <h3>{reward.name}</h3>
-                <span>사용 가능 · {count}개</span>
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
-    </section>
-  )
-}
-
 export function PrototypeDemo() {
   const demo = usePersistentDemoState()
-  const loginEmailRef = useRef<HTMLInputElement>(null)
-  const nicknameDialogRef = useRef<HTMLDialogElement>(null)
-  const resetDialogRef = useRef<HTMLDialogElement>(null)
-  const resetTriggerRef = useRef<HTMLButtonElement>(null)
   const [step, setStep] = useState<DemoStep>("predict")
-  const [authMode, setAuthMode] = useState<AuthMode>("login")
   const [cardIndex, setCardIndex] = useState(0)
-  const [emailDraft, setEmailDraft] = useState("")
   const [goalText, setGoalText] = useState("")
   const [goalAnalysisState, setGoalAnalysisState] = useState<GoalAnalysisState>({ kind: "idle" })
-  const [nicknameDraft, setNicknameDraft] = useState("")
-  const [password, setPassword] = useState("")
-  const [editingNickname, setEditingNickname] = useState(false)
   const [marketMessage, setMarketMessage] = useState("")
-  const [resetOpen, setResetOpen] = useState(false)
-  const [resetFocusPending, setResetFocusPending] = useState(false)
 
   const snapshot = demo.snapshot
   const demoState = demo.state
@@ -186,27 +127,6 @@ export function PrototypeDemo() {
   const points = demoState?.balance ?? 0
   const pendingPositions = demoState === null ? [] : selectPendingMarketPositions(demoState)
   const marketRounds = demoState === null ? [] : selectMarketRoundHistory(demoState)
-  const purchasedRewardIds =
-    demoState?.coupons
-      .map((coupon) => coupon.catalogId)
-      .filter((catalogId): catalogId is RewardId => isRewardId(catalogId)) ?? []
-
-  useEffect(() => {
-    const dialog = nicknameDialogRef.current
-    if (editingNickname && dialog !== null && !dialog.open) dialog.showModal()
-  }, [editingNickname])
-
-  useEffect(() => {
-    const dialog = resetDialogRef.current
-    if (resetOpen && dialog !== null && !dialog.open) dialog.showModal()
-  }, [resetOpen])
-
-  useEffect(() => {
-    if (!resetFocusPending || authenticated) return
-    loginEmailRef.current?.focus()
-    setResetFocusPending(false)
-  }, [authenticated, resetFocusPending])
-
   const addGoalItem = (): void => {
     const nextGoal = goalText.trim()
     if (nextGoal === "" || (!goalItems.includes(nextGoal) && goalItems.length >= 5)) return
@@ -262,90 +182,17 @@ export function PrototypeDemo() {
   if (!authenticated) {
     return (
       <main className="demoViewport demoLoginViewport" key="login">
-        <DemoTopBar label={authMode === "login" ? "로그인" : "회원가입"} />
+        <DemoTopBar label="계정" />
         <section className="demoScreen demoLoginScreen">
-          <div className="demoLoginHero">
-            <h1>{authMode === "login" ? "오늘도 가볍게 시작해요" : "처음 오셨나요?"}</h1>
-            <p>
-              {authMode === "login" ? "목표를 예측하고 기록해요." : "계정을 만들고 바로 시작해요."}
-            </p>
-          </div>
-          <form
-            className="demoLoginForm"
-            onSubmit={(event) => {
-              event.preventDefault()
-              if (emailDraft.trim() === "" || password === "") return
-              if (authMode === "signup") {
-                const nextNickname = nicknameDraft.trim()
-                if (nextNickname === "") return
-                demo.authenticate({ email: emailDraft, nickname: nextNickname })
-              } else {
-                demo.authenticate({ email: emailDraft })
-              }
-              setPassword("")
+          <AuthGate
+            onAuthenticate={(input: ValidAuthInput) => {
+              demo.authenticate(
+                input.mode === "signup"
+                  ? { email: input.email, nickname: input.nickname }
+                  : { email: input.email },
+              )
             }}
-          >
-            {authMode === "signup" ? (
-              <label className="formField">
-                <span className="formLabel">닉네임</span>
-                <input
-                  autoComplete="nickname"
-                  className="formInput demoGoalInput"
-                  maxLength={16}
-                  onChange={(event) => setNicknameDraft(event.target.value)}
-                  placeholder="닉네임 입력"
-                  value={nicknameDraft}
-                />
-              </label>
-            ) : null}
-            <label className="formField">
-              <span className="formLabel">이메일</span>
-              <input
-                autoComplete="email"
-                className="formInput demoGoalInput"
-                maxLength={254}
-                onChange={(event) => setEmailDraft(event.target.value)}
-                placeholder="이메일 입력"
-                ref={loginEmailRef}
-                type="email"
-                value={emailDraft}
-              />
-            </label>
-            <label className="formField">
-              <span className="formLabel">비밀번호</span>
-              <input
-                autoComplete="current-password"
-                className="formInput demoGoalInput"
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="비밀번호 입력"
-                type="password"
-                value={password}
-              />
-            </label>
-            <button
-              className="buttonFull demoPrimaryButton"
-              disabled={
-                emailDraft.trim() === "" ||
-                password === "" ||
-                (authMode === "signup" && nicknameDraft.trim() === "")
-              }
-              type="submit"
-            >
-              {authMode === "login" ? "로그인" : "회원가입"}
-            </button>
-            <button
-              className="authModeSwitch"
-              onClick={() => {
-                setAuthMode((current) => (current === "login" ? "signup" : "login"))
-                setEmailDraft("")
-                setPassword("")
-                setNicknameDraft("")
-              }}
-              type="button"
-            >
-              {authMode === "login" ? "회원가입" : "로그인으로 돌아가기"}
-            </button>
-          </form>
+          />
         </section>
       </main>
     )
@@ -590,6 +437,7 @@ export function PrototypeDemo() {
   }
 
   if (step === "profile") {
+    const summary = selectMySummary(demoState)
     return (
       <main className="demoViewport" key="profile">
         <DemoTopBar label="MY" />
@@ -597,132 +445,25 @@ export function PrototypeDemo() {
           <div className="demoHeading">
             <h1>내 정보</h1>
           </div>
-          <section className="profileCard">
-            <span aria-hidden="true" className="profileAvatar">
-              {nickname.trim().charAt(0) || "P"}
-            </span>
-            <div>
-              <h2>{nickname}</h2>
-              <p>{email}</p>
-            </div>
-            <button
-              aria-label="닉네임 변경"
-              className="profileEditButton buttonQuiet"
-              onClick={() => {
-                setNicknameDraft(nickname)
-                setEditingNickname(true)
-              }}
-              type="button"
-            >
-              변경
-            </button>
-          </section>
-          <PurchasedRewards purchasedRewardIds={purchasedRewardIds} />
-          <div className="demoBottomAction">
-            <button
-              className="buttonFull buttonQuiet demoPrimaryButton"
-              onClick={() => {
-                demo.logout()
-                setAuthMode("login")
-                setEmailDraft("")
-                setPassword("")
-                resetRoutineView()
-              }}
-              type="button"
-            >
-              로그아웃
-            </button>
-            <button
-              className="buttonFull buttonQuiet"
-              onClick={() => setResetOpen(true)}
-              ref={resetTriggerRef}
-              type="button"
-            >
-              데모 초기화
-            </button>
-          </div>
+          <MySurface
+            balance={points}
+            email={email}
+            nickname={nickname}
+            onLogout={() => {
+              demo.logout()
+              resetRoutineView()
+            }}
+            onReset={() => {
+              demo.reset()
+              resetRoutineView()
+            }}
+            onUpdateNickname={(nextNickname) => {
+              demo.dispatch({ nickname: nextNickname, type: "update_profile" })
+            }}
+            summary={summary}
+          />
         </section>
         <DemoBottomNav current="profile" onNavigate={navigate} />
-        {editingNickname ? (
-          <dialog
-            aria-labelledby="nickname-sheet-title"
-            className="rewardSheet profileEditSheet"
-            onCancel={() => setEditingNickname(false)}
-            ref={nicknameDialogRef}
-          >
-            <h2 id="nickname-sheet-title">닉네임 변경</h2>
-            <label className="formField">
-              <span className="formLabel">새 닉네임</span>
-              <input
-                autoFocus
-                className="formInput demoGoalInput"
-                maxLength={16}
-                onChange={(event) => setNicknameDraft(event.target.value)}
-                value={nicknameDraft}
-              />
-            </label>
-            <div className="rewardSheetActions">
-              <button
-                className="buttonQuiet"
-                onClick={() => setEditingNickname(false)}
-                type="button"
-              >
-                취소
-              </button>
-              <button
-                disabled={nicknameDraft.trim() === ""}
-                onClick={() => {
-                  demo.dispatch({ nickname: nicknameDraft.trim(), type: "update_profile" })
-                  setEditingNickname(false)
-                }}
-                type="button"
-              >
-                저장
-              </button>
-            </div>
-          </dialog>
-        ) : null}
-        {resetOpen ? (
-          <dialog
-            aria-labelledby="reset-demo-title"
-            className="rewardSheet profileEditSheet"
-            onCancel={() => {
-              setResetOpen(false)
-              window.requestAnimationFrame(() => resetTriggerRef.current?.focus())
-            }}
-            ref={resetDialogRef}
-          >
-            <h2 id="reset-demo-title">데모를 초기화할까요?</h2>
-            <p>이 기기의 프로필, 목표, 포인트와 예측 기록만 지워져요.</p>
-            <div className="rewardSheetActions">
-              <button
-                className="buttonQuiet"
-                onClick={() => {
-                  setResetOpen(false)
-                  window.requestAnimationFrame(() => resetTriggerRef.current?.focus())
-                }}
-                type="button"
-              >
-                취소
-              </button>
-              <button
-                onClick={() => {
-                  demo.reset()
-                  resetRoutineView()
-                  setAuthMode("login")
-                  setEmailDraft("")
-                  setPassword("")
-                  setNicknameDraft("")
-                  setResetOpen(false)
-                  setResetFocusPending(true)
-                }}
-                type="button"
-              >
-                초기화하기
-              </button>
-            </div>
-          </dialog>
-        ) : null}
       </main>
     )
   }
