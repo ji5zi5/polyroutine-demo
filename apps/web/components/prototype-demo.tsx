@@ -2,20 +2,16 @@
 
 import Image from "next/image"
 import { useEffect, useRef, useState } from "react"
+import {
+  type MarketPosition,
+  type MarketRoundHistory,
+  selectMarketRoundHistory,
+  selectPendingMarketPositions,
+} from "../lib/demo-state"
+import { PortfolioHistory } from "./demo-market/portfolio-history"
 import { demoPredictionOutcomes, predictionCards } from "./demo-prediction-cards"
-import { PredictionCard, type PredictionChoice } from "./prediction-card"
-
-type DemoPredictionPosition = {
-  readonly choice: PredictionChoice
-  readonly goalId: string
-  readonly payout: number
-  readonly stake: 100
-}
-
-function calculatePredictionPayout(choice: PredictionChoice, yesPercent: number): number {
-  const selectedPercent = choice === "yes" ? yesPercent : 100 - yesPercent
-  return Math.ceil(10_000 / selectedPercent)
-}
+import { usePersistentDemoState } from "./demo-state/use-persistent-demo-state"
+import { PredictionCard } from "./prediction-card"
 
 const rewardCatalog = [
   {
@@ -70,6 +66,17 @@ const rewardCatalog = [
 
 type RewardItem = (typeof rewardCatalog)[number]
 type RewardId = RewardItem["id"]
+
+function isRewardId(value: string): value is RewardId {
+  return rewardCatalog.some((reward) => reward.id === value)
+}
+
+function localDate(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
 
 function calculateSuccessProbability(goal: string): number {
   const normalized = goal.trim()
@@ -180,9 +187,9 @@ type PointsScreenProps = {
   readonly onNavigate: (tab: DemoTab) => void
   readonly onPurchase: (reward: RewardItem) => void
   readonly onSettlePredictions: () => void
+  readonly pendingPositions: readonly MarketPosition[]
   readonly points: number
-  readonly predictionPayout: number | null
-  readonly predictionPositions: readonly DemoPredictionPosition[]
+  readonly rounds: readonly MarketRoundHistory[]
 }
 
 function PointsScreen({
@@ -191,15 +198,15 @@ function PointsScreen({
   onNavigate,
   onPurchase,
   onSettlePredictions,
+  pendingPositions,
   points,
-  predictionPayout,
-  predictionPositions,
+  rounds,
 }: PointsScreenProps) {
   const attendanceDialogRef = useRef<HTMLDialogElement>(null)
   const rewardDialogRef = useRef<HTMLDialogElement>(null)
   const [attendanceOpen, setAttendanceOpen] = useState(false)
   const [selectedReward, setSelectedReward] = useState<RewardItem | null>(null)
-  const [settlementFeedbackVisible, setSettlementFeedbackVisible] = useState(false)
+  const [settlementFeedback, setSettlementFeedback] = useState<number | null>(null)
 
   useEffect(() => {
     const dialog = attendanceDialogRef.current
@@ -212,10 +219,10 @@ function PointsScreen({
   }, [selectedReward])
 
   useEffect(() => {
-    if (!settlementFeedbackVisible) return
-    const timer = window.setTimeout(() => setSettlementFeedbackVisible(false), 800)
+    if (settlementFeedback === null) return
+    const timer = window.setTimeout(() => setSettlementFeedback(null), 800)
     return () => window.clearTimeout(timer)
-  }, [settlementFeedbackVisible])
+  }, [settlementFeedback])
 
   return (
     <main className="demoViewport" key="points">
@@ -224,7 +231,7 @@ function PointsScreen({
         <div className="demoHeading">
           <h1>내 포인트</h1>
         </div>
-        <section className="pointsCard" data-settled={predictionPayout !== null}>
+        <section className="pointsCard" data-settled={settlementFeedback !== null}>
           <span>보유 포인트</span>
           <strong>{points.toLocaleString("ko-KR")}점</strong>
           <button
@@ -235,36 +242,43 @@ function PointsScreen({
             {attendanceClaimed ? "오늘 출석 완료" : "출석체크"}
           </button>
         </section>
-        {predictionPositions.length === 0 ? null : (
+        {pendingPositions.length === 0 && settlementFeedback === null ? null : (
           <section className="marketPortfolio">
             <div>
               <span>예측 포지션</span>
               <strong>
-                {predictionPayout === null
-                  ? `투자 ${(predictionPositions.length * 100).toLocaleString("ko-KR")}P · ${predictionPositions.length}건 대기`
-                  : `적중 정산 +${predictionPayout}P`}
+                {settlementFeedback === null
+                  ? `투자 ${(pendingPositions.length * 100).toLocaleString("ko-KR")}P · ${pendingPositions.length}건 대기`
+                  : `적중 정산 +${settlementFeedback}P`}
               </strong>
             </div>
             <button
               aria-live="polite"
               className={
-                settlementFeedbackVisible ? "buttonQuiet settlementFeedbackButton" : "buttonQuiet"
+                settlementFeedback !== null ? "buttonQuiet settlementFeedbackButton" : "buttonQuiet"
               }
-              disabled={predictionPayout !== null}
+              disabled={settlementFeedback !== null}
               onClick={() => {
-                if (predictionPayout !== null) return
-                setSettlementFeedbackVisible(true)
+                if (settlementFeedback !== null) return
+                setSettlementFeedback(
+                  pendingPositions.reduce(
+                    (total, position) =>
+                      position.choice === position.fixtureOutcome
+                        ? total + position.grossPayout
+                        : total,
+                    0,
+                  ),
+                )
                 onSettlePredictions()
               }}
               type="button"
             >
-              {predictionPayout === null
-                ? "예측 결과 정산하기"
-                : settlementFeedbackVisible
-                  ? `+${predictionPayout}P 적중`
-                  : "정산 완료"}
+              {settlementFeedback === null ? "예측 결과 정산하기" : `+${settlementFeedback}P 적중`}
             </button>
           </section>
+        )}
+        {pendingPositions.length === 0 && rounds.length === 0 ? null : (
+          <PortfolioHistory pendingPositions={pendingPositions} rounds={rounds} />
         )}
         <section className="rewardShop">
           <h2>포인트 상점</h2>
@@ -410,39 +424,60 @@ function PurchasedRewards({
 }
 
 export function PrototypeDemo() {
+  const demo = usePersistentDemoState()
   const analysisTimer = useRef<number | null>(null)
+  const loginEmailRef = useRef<HTMLInputElement>(null)
   const nicknameDialogRef = useRef<HTMLDialogElement>(null)
+  const resetDialogRef = useRef<HTMLDialogElement>(null)
+  const resetTriggerRef = useRef<HTMLButtonElement>(null)
   const verificationTimer = useRef<number | null>(null)
-  const goalListedRef = useRef(false)
-  const predictionSettledRef = useRef(false)
-  const settledRef = useRef(false)
   const [step, setStep] = useState<DemoStep>("predict")
-  const [attendanceClaimed, setAttendanceClaimed] = useState(false)
   const [authMode, setAuthMode] = useState<AuthMode>("login")
   const [cardIndex, setCardIndex] = useState(0)
-  const [authenticated, setAuthenticated] = useState(false)
-  const [email, setEmail] = useState("")
+  const [emailDraft, setEmailDraft] = useState("")
   const [evidencePreviewUrl, setEvidencePreviewUrl] = useState("")
-  const [goalItems, setGoalItems] = useState<readonly string[]>([])
   const [goalText, setGoalText] = useState("")
-  const [nickname, setNickname] = useState("폴리 유저")
   const [nicknameDraft, setNicknameDraft] = useState("")
   const [password, setPassword] = useState("")
-  const [points, setPoints] = useState(51_200)
   const [probability, setProbability] = useState<number | null>(null)
-  const [predictionPayout, setPredictionPayout] = useState<number | null>(null)
-  const [predictionPositions, setPredictionPositions] = useState<readonly DemoPredictionPosition[]>(
-    [],
-  )
-  const [purchasedRewardIds, setPurchasedRewardIds] = useState<readonly RewardId[]>([])
   const [analyzing, setAnalyzing] = useState(false)
   const [editingNickname, setEditingNickname] = useState(false)
+  const [marketMessage, setMarketMessage] = useState("")
+  const [resetOpen, setResetOpen] = useState(false)
+  const [resetFocusPending, setResetFocusPending] = useState(false)
   const [verifying, setVerifying] = useState(false)
+
+  const snapshot = demo.snapshot
+  const demoState = demo.state
+  const authenticated = snapshot?.authenticated ?? false
+  const email = snapshot?.email ?? ""
+  const goalItems = demoState?.goals.map((goal) => goal.title) ?? []
+  const nickname = demoState?.profile.nickname ?? "폴리 유저"
+  const points = demoState?.balance ?? 0
+  const pendingPositions = demoState === null ? [] : selectPendingMarketPositions(demoState)
+  const marketRounds = demoState === null ? [] : selectMarketRoundHistory(demoState)
+  const attendanceClaimed =
+    demoState?.attendance.some((claim) => claim.localDate === localDate(new Date())) ?? false
+  const purchasedRewardIds =
+    demoState?.coupons
+      .map((coupon) => coupon.catalogId)
+      .filter((catalogId): catalogId is RewardId => isRewardId(catalogId)) ?? []
 
   useEffect(() => {
     const dialog = nicknameDialogRef.current
     if (editingNickname && dialog !== null && !dialog.open) dialog.showModal()
   }, [editingNickname])
+
+  useEffect(() => {
+    const dialog = resetDialogRef.current
+    if (resetOpen && dialog !== null && !dialog.open) dialog.showModal()
+  }, [resetOpen])
+
+  useEffect(() => {
+    if (!resetFocusPending || authenticated) return
+    loginEmailRef.current?.focus()
+    setResetFocusPending(false)
+  }, [authenticated, resetFocusPending])
 
   useEffect(() => {
     return () => {
@@ -459,9 +494,10 @@ export function PrototypeDemo() {
 
   const addGoalItem = (): void => {
     const nextGoal = goalText.trim()
-    if (nextGoal === "") return
+    if (nextGoal === "" || (!goalItems.includes(nextGoal) && goalItems.length >= 5)) return
 
-    setGoalItems((current) => (current.includes(nextGoal) ? current : [...current, nextGoal]))
+    const nextGoals = goalItems.includes(nextGoal) ? goalItems : [...goalItems, nextGoal]
+    demo.dispatch({ titles: nextGoals, type: "replace_goals" })
     setGoalText("")
     setProbability(null)
   }
@@ -474,7 +510,7 @@ export function PrototypeDemo() {
         : goalItems
     if (goalsToAnalyze.length === 0) return
 
-    setGoalItems(goalsToAnalyze)
+    demo.dispatch({ titles: goalsToAnalyze, type: "replace_goals" })
     setGoalText("")
     setAnalyzing(true)
     analysisTimer.current = window.setTimeout(() => {
@@ -484,19 +520,13 @@ export function PrototypeDemo() {
     }, 1_000)
   }
 
-  const resetDemo = (): void => {
+  const resetRoutineView = (): void => {
     setCardIndex(0)
-    setGoalItems([])
     setGoalText("")
     setEvidencePreviewUrl("")
-    goalListedRef.current = false
-    predictionSettledRef.current = false
-    settledRef.current = false
     setProbability(null)
-    setPredictionPayout(null)
-    setPredictionPositions([])
-    setPurchasedRewardIds([])
     setAnalyzing(false)
+    setMarketMessage("")
     setVerifying(false)
     setStep("predict")
   }
@@ -510,7 +540,17 @@ export function PrototypeDemo() {
       setStep(tab)
       return
     }
-    setStep(goalListedRef.current ? "listed" : "goal")
+    setStep(goalItems.length > 0 ? "listed" : "goal")
+  }
+
+  if (!demo.hydrated || snapshot === null || demoState === null) {
+    return (
+      <main aria-busy="true" className="demoViewport demoLoginViewport">
+        <span aria-live="polite" className="ownedRewardsEmpty" role="status">
+          데모를 불러오고 있어요
+        </span>
+      </main>
+    )
   }
 
   if (!authenticated) {
@@ -528,13 +568,15 @@ export function PrototypeDemo() {
             className="demoLoginForm"
             onSubmit={(event) => {
               event.preventDefault()
-              if (email.trim() === "" || password === "") return
+              if (emailDraft.trim() === "" || password === "") return
               if (authMode === "signup") {
                 const nextNickname = nicknameDraft.trim()
                 if (nextNickname === "") return
-                setNickname(nextNickname)
+                demo.authenticate({ email: emailDraft, nickname: nextNickname })
+              } else {
+                demo.authenticate({ email: emailDraft })
               }
-              setAuthenticated(true)
+              setPassword("")
             }}
           >
             {authMode === "signup" ? (
@@ -543,6 +585,7 @@ export function PrototypeDemo() {
                 <input
                   autoComplete="nickname"
                   className="formInput demoGoalInput"
+                  maxLength={16}
                   onChange={(event) => setNicknameDraft(event.target.value)}
                   placeholder="닉네임 입력"
                   value={nicknameDraft}
@@ -554,10 +597,12 @@ export function PrototypeDemo() {
               <input
                 autoComplete="email"
                 className="formInput demoGoalInput"
-                onChange={(event) => setEmail(event.target.value)}
+                maxLength={254}
+                onChange={(event) => setEmailDraft(event.target.value)}
                 placeholder="이메일 입력"
+                ref={loginEmailRef}
                 type="email"
-                value={email}
+                value={emailDraft}
               />
             </label>
             <label className="formField">
@@ -574,7 +619,7 @@ export function PrototypeDemo() {
             <button
               className="buttonFull demoPrimaryButton"
               disabled={
-                email.trim() === "" ||
+                emailDraft.trim() === "" ||
                 password === "" ||
                 (authMode === "signup" && nicknameDraft.trim() === "")
               }
@@ -586,7 +631,7 @@ export function PrototypeDemo() {
               className="authModeSwitch"
               onClick={() => {
                 setAuthMode((current) => (current === "login" ? "signup" : "login"))
-                setEmail("")
+                setEmailDraft("")
                 setPassword("")
                 setNicknameDraft("")
               }}
@@ -606,9 +651,7 @@ export function PrototypeDemo() {
     if (card === undefined || nextCard === undefined) return null
     return (
       <main className="demoViewport" key="predict">
-        <DemoTopBar
-          label={predictionPayout === null ? `${points.toLocaleString("ko-KR")}P` : "정산 완료"}
-        />
+        <DemoTopBar label={`${points.toLocaleString("ko-KR")}P`} />
         <section
           className="demoScreen demoPredictScreen"
           data-card-pool-size={predictionCards.length}
@@ -622,23 +665,38 @@ export function PrototypeDemo() {
             key={card.goalId}
             nextCard={nextCard}
             onChoice={(choice) => {
-              if (points >= 100 && predictionPayout === null) {
-                setPredictionPositions((current) => [
-                  ...current,
-                  {
-                    choice,
-                    goalId: card.goalId,
-                    payout: calculatePredictionPayout(choice, card.yesPercent ?? 50),
-                    stake: 100,
-                  },
-                ])
-                setPoints((current) => current - 100)
+              if (points < 100) {
+                setMarketMessage(`100P 필요 · 보유 ${points}P · ${100 - points}P 부족`)
+                return
               }
+              const yesPercent = card.yesPercent ?? 50
+              const crowdPercentage = choice === "yes" ? yesPercent : 100 - yesPercent
+              const fixtureOutcome = demoPredictionOutcomes[card.goalId]
+              if (fixtureOutcome === undefined) return
+              demo.dispatch({
+                cardId: card.goalId,
+                cardLabel: card.tasks?.join(" · ") ?? card.recipe.instructions,
+                choice,
+                crowdPercentage,
+                fixtureOutcome,
+                roundId: demoState.round.id,
+                stake: 100,
+                type: "place_market_position",
+              })
+              setMarketMessage(`-100P · ${choice === "yes" ? "가능" : "불가능"} 베팅`)
               setCardIndex((current) => (current + 1) % predictionCards.length)
             }}
-            onSkip={() => setCardIndex((current) => (current + 1) % predictionCards.length)}
-            rewardEligible={points >= 100 && predictionPayout === null}
+            onSkip={() => {
+              setMarketMessage("")
+              setCardIndex((current) => (current + 1) % predictionCards.length)
+            }}
+            rewardEligible={points >= 100}
           />
+          {marketMessage === "" ? null : (
+            <p aria-live="polite" className="ownedRewardsEmpty">
+              {marketMessage}
+            </p>
+          )}
         </section>
         <DemoBottomNav current="predict" onNavigate={navigate} />
       </main>
@@ -662,6 +720,7 @@ export function PrototypeDemo() {
                 className="formInput demoGoalInput"
                 disabled={analyzing}
                 id="demo-goal-input"
+                maxLength={120}
                 onChange={(event) => {
                   setGoalText(event.target.value)
                   setProbability(null)
@@ -677,7 +736,7 @@ export function PrototypeDemo() {
               <button
                 aria-label="목표 추가"
                 className="goalAddButton"
-                disabled={goalText.trim() === "" || analyzing}
+                disabled={goalText.trim() === "" || goalItems.length >= 5 || analyzing}
                 onClick={addGoalItem}
                 type="button"
               >
@@ -694,7 +753,10 @@ export function PrototypeDemo() {
                     aria-label={`${goal} 삭제`}
                     disabled={analyzing}
                     onClick={() => {
-                      setGoalItems((current) => current.filter((item) => item !== goal))
+                      demo.dispatch({
+                        titles: goalItems.filter((item) => item !== goal),
+                        type: "replace_goals",
+                      })
                       setProbability(null)
                     }}
                     type="button"
@@ -727,7 +789,6 @@ export function PrototypeDemo() {
               <button
                 className="buttonFull demoPrimaryButton"
                 onClick={() => {
-                  goalListedRef.current = true
                   setStep("listed")
                 }}
                 type="button"
@@ -774,7 +835,7 @@ export function PrototypeDemo() {
             <dl>
               <div>
                 <dt>AI 성공 확률</dt>
-                <dd>{probability}%</dd>
+                <dd>{probability ?? calculateSuccessProbability(goalItems.join("\n"))}%</dd>
               </div>
               <div>
                 <dt>인증 마감</dt>
@@ -866,9 +927,13 @@ export function PrototypeDemo() {
               <button
                 className="buttonFull demoPrimaryButton"
                 onClick={() => {
-                  if (!settledRef.current) {
-                    setPoints((current) => current + 200)
-                    settledRef.current = true
+                  const firstGoal = demoState.goals[0]
+                  if (firstGoal !== undefined) {
+                    demo.dispatch({
+                      amount: 200,
+                      goalId: firstGoal.id,
+                      type: "credit_goal_completion",
+                    })
                   }
                   setStep("settle")
                 }}
@@ -905,30 +970,23 @@ export function PrototypeDemo() {
         attendanceClaimed={attendanceClaimed}
         key="points"
         onClaimAttendance={() => {
-          if (attendanceClaimed) return
-          setAttendanceClaimed(true)
-          setPoints((current) => current + 200)
+          demo.dispatch({ amount: 200, localDate: localDate(new Date()), type: "claim_attendance" })
         }}
         onNavigate={navigate}
         onPurchase={(reward) => {
-          if (points < reward.cost) return
-          setPoints((current) => current - reward.cost)
-          setPurchasedRewardIds((current) => [...current, reward.id])
+          demo.dispatch({
+            catalogId: reward.id,
+            cost: reward.cost,
+            label: reward.name,
+            type: "purchase_coupon",
+          })
         }}
         onSettlePredictions={() => {
-          if (predictionSettledRef.current) return
-          predictionSettledRef.current = true
-          const payout = predictionPositions.reduce((total, position) => {
-            return position.choice === demoPredictionOutcomes[position.goalId]
-              ? total + position.payout
-              : total
-          }, 0)
-          setPredictionPayout(payout)
-          setPoints((current) => current + payout)
+          demo.dispatch({ roundId: demoState.round.id, type: "settle_market_round" })
         }}
+        pendingPositions={pendingPositions}
         points={points}
-        predictionPayout={predictionPayout}
-        predictionPositions={predictionPositions}
+        rounds={marketRounds}
       />
     )
   }
@@ -966,15 +1024,23 @@ export function PrototypeDemo() {
             <button
               className="buttonFull buttonQuiet demoPrimaryButton"
               onClick={() => {
-                resetDemo()
+                demo.logout()
                 setAuthMode("login")
-                setEmail("")
+                setEmailDraft("")
                 setPassword("")
-                setAuthenticated(false)
+                resetRoutineView()
               }}
               type="button"
             >
               로그아웃
+            </button>
+            <button
+              className="buttonFull buttonQuiet"
+              onClick={() => setResetOpen(true)}
+              ref={resetTriggerRef}
+              type="button"
+            >
+              데모 초기화
             </button>
           </div>
         </section>
@@ -1008,12 +1074,53 @@ export function PrototypeDemo() {
               <button
                 disabled={nicknameDraft.trim() === ""}
                 onClick={() => {
-                  setNickname(nicknameDraft.trim())
+                  demo.dispatch({ nickname: nicknameDraft.trim(), type: "update_profile" })
                   setEditingNickname(false)
                 }}
                 type="button"
               >
                 저장
+              </button>
+            </div>
+          </dialog>
+        ) : null}
+        {resetOpen ? (
+          <dialog
+            aria-labelledby="reset-demo-title"
+            className="rewardSheet profileEditSheet"
+            onCancel={() => {
+              setResetOpen(false)
+              window.requestAnimationFrame(() => resetTriggerRef.current?.focus())
+            }}
+            ref={resetDialogRef}
+          >
+            <h2 id="reset-demo-title">데모를 초기화할까요?</h2>
+            <p>이 기기의 프로필, 목표, 포인트와 예측 기록만 지워져요.</p>
+            <div className="rewardSheetActions">
+              <button
+                className="buttonQuiet"
+                onClick={() => {
+                  setResetOpen(false)
+                  window.requestAnimationFrame(() => resetTriggerRef.current?.focus())
+                }}
+                type="button"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => {
+                  demo.reset()
+                  resetRoutineView()
+                  setAuthMode("login")
+                  setEmailDraft("")
+                  setPassword("")
+                  setNicknameDraft("")
+                  setResetOpen(false)
+                  setResetFocusPending(true)
+                }}
+                type="button"
+              >
+                초기화하기
               </button>
             </div>
           </dialog>
@@ -1046,7 +1153,7 @@ export function PrototypeDemo() {
         <div className="demoBottomAction">
           <button
             className="buttonFull buttonQuiet demoPrimaryButton"
-            onClick={resetDemo}
+            onClick={resetRoutineView}
             type="button"
           >
             처음부터 다시 보기

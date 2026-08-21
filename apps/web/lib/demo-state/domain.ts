@@ -1,4 +1,4 @@
-import type { DemoAction, DemoState, LedgerEvent } from "./schema"
+import type { DemoAction, DemoState, LedgerEvent, MarketPosition } from "./schema"
 import { demoStateSchema } from "./schema"
 
 export type DemoDependencies = Readonly<{
@@ -44,6 +44,12 @@ export function selectLedger(state: DemoState): DemoState["ledger"] {
 
 export function selectPositions(state: DemoState): DemoState["positions"] {
   return state.positions
+}
+
+export function selectPendingMarketPositions(state: DemoState): readonly MarketPosition[] {
+  return state.positions.filter(
+    (position): position is MarketPosition => "kind" in position && position.kind === "market",
+  )
 }
 
 function ledgerBalance(state: DemoState): number {
@@ -92,9 +98,10 @@ export function createInitialDemoState(dependencies: DemoDependencies): DemoStat
     ],
     initialBalance: 51_200,
     ledger: [],
+    marketHistory: [],
     positions: [],
-    profile: { id: "local-profile", nickname: "Poly User", scope: "device-local" },
-    round: { id: "round-1", status: "open" },
+    profile: { id: "local-profile", nickname: "폴리 유저", scope: "device-local" },
+    round: { id: "round-1", openedAt: dependencies.now().toISOString(), status: "open" },
     settledRoundIds: [],
     version: 1,
   })
@@ -106,6 +113,8 @@ function allocatedIds(state: DemoState): readonly string[] {
     state.round.id,
     ...state.goals.map((goal) => goal.id),
     ...state.positions.map((position) => position.id),
+    ...state.marketHistory.map((position) => position.id),
+    ...state.settledRoundIds,
     ...state.ledger.map((event) => event.id),
     ...state.coupons.flatMap((coupon) =>
       coupon.status === "used" ? [coupon.id, coupon.useId] : [coupon.id],

@@ -8,6 +8,7 @@ import {
   parseDemoState,
   placePosition,
 } from "./domain"
+import { placeMarketPosition, settleMarketRound } from "./market"
 import type { DemoAction, DemoState } from "./schema"
 import { demoActionSchema } from "./schema"
 
@@ -16,10 +17,11 @@ function settleRound(
   action: Extract<DemoAction, { readonly type: "settle_round" }>,
   dependencies: DemoDependencies,
 ): DemoState {
-  if (state.round.id !== action.roundId) throw new DemoDomainError("round_not_open")
   if (state.settledRoundIds.includes(action.roundId)) return state
+  if (state.round.id !== action.roundId) throw new DemoDomainError("round_not_open")
   let settled: DemoState = state
   for (const position of state.positions) {
+    if ("kind" in position) continue
     if (
       position.roundId !== action.roundId ||
       action.outcomes[position.goalId] !== position.choice
@@ -38,9 +40,15 @@ function settleRound(
     )
     settled = appendLedgerEvent(settled, credit)
   }
+  const nextRoundId = `${action.roundId}-next-${state.settledRoundIds.length + 1}`
   return {
     ...settled,
-    round: { ...settled.round, status: "settled" },
+    positions: settled.positions.filter((position) => position.roundId !== action.roundId),
+    round: {
+      id: nextRoundId,
+      openedAt: dependencies.now().toISOString(),
+      status: "open",
+    },
     settledRoundIds: [...settled.settledRoundIds, action.roundId],
   }
 }
@@ -103,6 +111,60 @@ function redeemCoupon(
   }
 }
 
+function creditGoalCompletion(
+  state: DemoState,
+  action: Extract<DemoAction, { readonly type: "credit_goal_completion" }>,
+  dependencies: DemoDependencies,
+): DemoState {
+  if (!state.goals.some((goal) => goal.id === action.goalId)) {
+    throw new DemoDomainError("goal_not_found")
+  }
+  if (
+    state.ledger.some(
+      (event) => event.sourceType === "goal_completion" && event.sourceId === action.goalId,
+    )
+  ) {
+    return state
+  }
+  const credit = createLedgerEvent(
+    state,
+    {
+      amount: action.amount,
+      direction: "credit",
+      sourceId: action.goalId,
+      sourceType: "goal_completion",
+    },
+    dependencies,
+  )
+  return appendLedgerEvent(state, credit)
+}
+
+function replaceGoals(
+  state: DemoState,
+  action: Extract<DemoAction, { readonly type: "replace_goals" }>,
+  dependencies: DemoDependencies,
+): DemoState {
+  if (
+    state.goals.length === action.titles.length &&
+    state.goals.every((goal, index) => goal.title === action.titles[index])
+  ) {
+    return state
+  }
+  let allocationState = state
+  const goals = action.titles.map((title) => {
+    const existing = state.goals.find((goal) => goal.title === title)
+    if (existing !== undefined) return existing
+    const goal = {
+      id: allocateId(allocationState, dependencies),
+      scope: "device-local" as const,
+      title,
+    }
+    allocationState = { ...allocationState, goals: [...allocationState.goals, goal] }
+    return goal
+  })
+  return { ...state, goals }
+}
+
 function assertNever(_action: never): never {
   throw new DemoDomainError("unknown_action")
 }
@@ -116,20 +178,38 @@ export function reduceDemoState(
   const action = demoActionSchema.parse(inputAction)
   let next: DemoState
   switch (action.type) {
+    case "credit_goal_completion":
+      next = creditGoalCompletion(state, action, dependencies)
+      break
     case "claim_attendance":
       next = applyClaimAttendance(state, action, dependencies)
       break
     case "place_position":
       next = placePosition(state, action, dependencies)
       break
+    case "place_market_position":
+      next = placeMarketPosition(state, action, dependencies).state
+      break
     case "purchase_coupon":
       next = purchaseCoupon(state, action, dependencies)
+      break
+    case "replace_goals":
+      next = replaceGoals(state, action, dependencies)
       break
     case "settle_round":
       next = settleRound(state, action, dependencies)
       break
+    case "settle_market_round":
+      next = settleMarketRound(state, action, dependencies)
+      break
+    case "skip_market_card":
+      next = state
+      break
     case "use_coupon":
       next = redeemCoupon(state, action, dependencies)
+      break
+    case "update_profile":
+      next = { ...state, profile: { ...state.profile, nickname: action.nickname } }
       break
     default:
       return assertNever(action)

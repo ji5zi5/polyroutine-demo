@@ -1,5 +1,6 @@
 import path from "node:path"
 import { expect, type Page, test } from "@playwright/test"
+import { DEMO_STATE_STORAGE_KEY } from "../../lib/demo-state/persistence"
 
 const evidenceDir = path.resolve(
   import.meta.dirname,
@@ -48,6 +49,8 @@ async function completePredictions(page: Page): Promise<void> {
 }
 
 async function loginDemo(page: Page): Promise<void> {
+  await page.evaluate((key) => localStorage.removeItem(key), DEMO_STATE_STORAGE_KEY)
+  await page.reload()
   await page.getByLabel("이메일").fill("demo@polyroutine.app")
   await page.getByLabel("비밀번호").fill("routine123")
   await page.getByRole("button", { name: "로그인", exact: true }).click()
