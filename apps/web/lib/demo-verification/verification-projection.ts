@@ -1,7 +1,4 @@
-import type {
-  PersistedPhotoVerificationState,
-  PhotoVerificationState,
-} from "./verification-types.js"
+import type { PersistedPhotoVerificationState, PhotoVerificationState } from "./verification-types"
 
 function assertNever(value: never): never {
   throw new TypeError(`Unexpected verification state: ${JSON.stringify(value)}`)

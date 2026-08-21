@@ -1,5 +1,28 @@
 import { expect, type Page, test } from "@playwright/test"
 
+test.beforeEach(async ({ page }) => {
+  await page.route("**/api/demo/goal-analysis", async (route) => {
+    const request = route.request().postDataJSON() as { goals?: readonly string[] }
+    const joinedGoals = request.goals?.join(" ") ?? ""
+    const probability = joinedGoals.includes("산책")
+      ? 41
+      : joinedGoals.includes("영어 공부")
+        ? 62
+        : 77
+    await new Promise<void>((resolve) => setTimeout(resolve, 150))
+    await route.fulfill({
+      contentType: "application/json",
+      json: {
+        confidence: "high",
+        factors: ["목표의 구체성과 분량을 함께 살펴봤어요"],
+        probability,
+        source: "fallback",
+      },
+      status: 200,
+    })
+  })
+})
+
 async function loginDemo(page: Page): Promise<void> {
   await page.getByLabel("이메일").fill("demo@polyroutine.app")
   await page.getByLabel("비밀번호").fill("routine123")
@@ -91,7 +114,7 @@ test("demo completes the mobile prediction routine", async ({ page }) => {
   await page.getByRole("button", { name: "사진 인증하기" }).click()
 
   await expect(page.getByRole("heading", { name: "사진 인증" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "사진 인증하기" })).toBeDisabled()
+  await expect(page.getByRole("button", { name: "사진 확인하기" })).toBeDisabled()
   const photoInput = page.locator('input[type="file"]')
   await photoInput.setInputFiles({
     buffer: Buffer.from(
@@ -101,9 +124,9 @@ test("demo completes the mobile prediction routine", async ({ page }) => {
     mimeType: "image/png",
     name: "goal-proof.png",
   })
-  await expect(page.getByRole("img", { name: "선택한 인증 사진" })).toBeVisible()
-  await page.getByRole("button", { name: "사진 인증하기" }).click()
-  await expect(page.getByRole("heading", { name: "인증이 끝났어요" })).toBeVisible()
+  await expect(page.getByRole("img", { name: "선택한 사진 미리보기" })).toBeVisible()
+  await page.getByRole("button", { name: "사진 확인하기" }).click()
+  await expect(page.getByText("파일 형식과 미리보기를 확인했어요.")).toBeVisible()
   await page.getByRole("button", { name: "정산 결과 보기" }).click()
 
   await expect(page.getByRole("heading", { name: "오늘의 정산" })).toBeVisible()
@@ -195,11 +218,17 @@ test("AI probability changes for different vague goals", async ({ page }) => {
   const goalInput = page.getByLabel("오늘의 목표")
   await goalInput.fill("산책하기")
   await page.getByRole("button", { name: "성공 확률 분석하기" }).click()
-  const firstProbability = await page.locator(".probabilityCard strong").textContent()
+  const firstProbability = await page
+    .getByLabel("AI 예상 성공 확률")
+    .locator("strong")
+    .textContent()
 
   await goalInput.fill("영어 공부하기")
   await page.getByRole("button", { name: "성공 확률 분석하기" }).click()
-  const secondProbability = await page.locator(".probabilityCard strong").textContent()
+  const secondProbability = await page
+    .getByLabel("AI 예상 성공 확률")
+    .locator("strong")
+    .textContent()
 
   expect(firstProbability).not.toBe(secondProbability)
 })
@@ -209,7 +238,7 @@ test("AI estimate stays separate from the crowd prediction ratio", async ({ page
   await page.goto("/demo")
   await loginDemo(page)
 
-  await expect(page.getByText("AI 예상 59%", { exact: true })).toBeVisible()
+  await expect(page.getByText("예시 모델 추정 59%", { exact: true })).toBeVisible()
   await expect(page.getByText("참여자 예측", { exact: true })).toBeVisible()
   await expect(page.getByText("가능 64%", { exact: true })).toBeVisible()
 })
@@ -249,7 +278,7 @@ test("multiple goals can be added at once as a daily checklist", async ({ page }
   }
   await expect(page.getByRole("list", { name: "추가한 목표" }).getByRole("listitem")).toHaveCount(3)
   await page.getByRole("button", { name: "성공 확률 분석하기" }).click()
-  await expect(page.locator(".probabilityCard strong")).toContainText("%")
+  await expect(page.getByLabel("AI 예상 성공 확률").locator("strong")).toContainText("%")
   await page.getByRole("button", { name: "이 목표 상장하기" }).click()
 
   await expect(page.getByRole("list", { name: "오늘의 할 일" }).getByRole("listitem")).toHaveCount(

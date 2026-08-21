@@ -7,6 +7,22 @@ const evidenceDir = path.resolve(
   "../../../../.omo/evidence/demo/mobile-prototype",
 )
 
+test.beforeEach(async ({ page }) => {
+  await page.route("**/api/demo/goal-analysis", async (route) => {
+    await new Promise<void>((resolve) => setTimeout(resolve, 150))
+    await route.fulfill({
+      contentType: "application/json",
+      json: {
+        confidence: "high",
+        factors: ["목표의 구체성과 분량을 함께 살펴봤어요"],
+        probability: 77,
+        source: "fallback",
+      },
+      status: 200,
+    })
+  })
+})
+
 async function settleForCapture(page: Page): Promise<void> {
   await page.mouse.move(370, 8)
   await page.evaluate(
@@ -143,8 +159,8 @@ test("captures every settled mobile prototype state", async ({ page }) => {
   await loginDemo(page)
   await openVerification(page)
   await uploadProofPhoto(page)
-  await page.getByRole("button", { name: "사진 인증하기" }).click()
-  await expect(page.getByRole("heading", { name: "인증이 끝났어요" })).toBeVisible()
+  await page.getByRole("button", { name: "사진 확인하기" }).click()
+  await expect(page.getByText("파일 형식과 미리보기를 확인했어요.")).toBeVisible()
   await capture(page, "verified-375")
 
   await page.getByRole("button", { name: "정산 결과 보기" }).click()

@@ -2,15 +2,20 @@
 
 import Image from "next/image"
 import { useEffect, useRef, useState } from "react"
+import type { GoalAnalysisState } from "../lib/demo-goal-analysis/client/use-goal-analysis"
+import { GoalAnalysisRequestSchema } from "../lib/demo-goal-analysis/contract"
+import { analyzeGoalsFallback } from "../lib/demo-goal-analysis/fallback"
 import {
   type MarketPosition,
   type MarketRoundHistory,
   selectMarketRoundHistory,
   selectPendingMarketPositions,
 } from "../lib/demo-state"
+import { GoalAnalysisPanel } from "./demo-goal-analysis/goal-analysis-panel"
 import { PortfolioHistory } from "./demo-market/portfolio-history"
 import { demoPredictionOutcomes, predictionCards } from "./demo-prediction-cards"
 import { usePersistentDemoState } from "./demo-state/use-persistent-demo-state"
+import { DemoVerificationSurface } from "./demo-verification/demo-verification-surface"
 import { PredictionCard } from "./prediction-card"
 
 const rewardCatalog = [
@@ -78,36 +83,7 @@ function localDate(date: Date): string {
   return `${year}-${month}-${day}`
 }
 
-function calculateSuccessProbability(goal: string): number {
-  const normalized = goal.trim()
-  if (normalized === "") return 0
-
-  const taskCount = normalized.split(/\r?\n/).filter((task) => task.trim() !== "").length
-
-  let textVariation = 0
-  for (const character of normalized) {
-    textVariation = (textVariation * 31 + (character.codePointAt(0) ?? 0)) >>> 0
-  }
-
-  let score = 34 + Math.min(12, Math.floor(normalized.length * 0.8))
-  if (/\d/.test(normalized)) score += 10
-  if (/(분|시간|쪽|장|개|줄|회)/.test(normalized)) score += 8
-  if (/(요약|기록|복습|완료|풀기|읽기|운동)/.test(normalized)) score += 7
-  if (normalized.length >= 10 && normalized.length <= 30) score += 5
-  score -= Math.max(0, taskCount - 1) * 4
-  score += (textVariation % 9) - 4
-  return Math.max(32, Math.min(89, score))
-}
-
-type DemoStep =
-  | "goal"
-  | "listed"
-  | "points"
-  | "predict"
-  | "profile"
-  | "settle"
-  | "verified"
-  | "verify"
+type DemoStep = "goal" | "listed" | "points" | "predict" | "profile" | "settle" | "verify"
 type DemoTab = "goal" | "points" | "predict" | "profile"
 type AuthMode = "login" | "signup"
 
@@ -124,21 +100,6 @@ function DemoTopBar({ label }: { readonly label: string }) {
       <span className="demoBrand">폴리루틴</span>
       <span className="demoStepLabel">{label}</span>
     </header>
-  )
-}
-
-function CheckIcon() {
-  return (
-    <svg aria-hidden="true" fill="none" viewBox="0 0 48 48">
-      <circle cx="24" cy="24" r="20" stroke="currentColor" strokeWidth="3" />
-      <path
-        d="m15 24 6 6 12-13"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="3"
-      />
-    </svg>
   )
 }
 
@@ -425,27 +386,22 @@ function PurchasedRewards({
 
 export function PrototypeDemo() {
   const demo = usePersistentDemoState()
-  const analysisTimer = useRef<number | null>(null)
   const loginEmailRef = useRef<HTMLInputElement>(null)
   const nicknameDialogRef = useRef<HTMLDialogElement>(null)
   const resetDialogRef = useRef<HTMLDialogElement>(null)
   const resetTriggerRef = useRef<HTMLButtonElement>(null)
-  const verificationTimer = useRef<number | null>(null)
   const [step, setStep] = useState<DemoStep>("predict")
   const [authMode, setAuthMode] = useState<AuthMode>("login")
   const [cardIndex, setCardIndex] = useState(0)
   const [emailDraft, setEmailDraft] = useState("")
-  const [evidencePreviewUrl, setEvidencePreviewUrl] = useState("")
   const [goalText, setGoalText] = useState("")
+  const [goalAnalysisState, setGoalAnalysisState] = useState<GoalAnalysisState>({ kind: "idle" })
   const [nicknameDraft, setNicknameDraft] = useState("")
   const [password, setPassword] = useState("")
-  const [probability, setProbability] = useState<number | null>(null)
-  const [analyzing, setAnalyzing] = useState(false)
   const [editingNickname, setEditingNickname] = useState(false)
   const [marketMessage, setMarketMessage] = useState("")
   const [resetOpen, setResetOpen] = useState(false)
   const [resetFocusPending, setResetFocusPending] = useState(false)
-  const [verifying, setVerifying] = useState(false)
 
   const snapshot = demo.snapshot
   const demoState = demo.state
@@ -479,19 +435,6 @@ export function PrototypeDemo() {
     setResetFocusPending(false)
   }, [authenticated, resetFocusPending])
 
-  useEffect(() => {
-    return () => {
-      if (analysisTimer.current !== null) window.clearTimeout(analysisTimer.current)
-      if (verificationTimer.current !== null) window.clearTimeout(verificationTimer.current)
-    }
-  }, [])
-
-  useEffect(() => {
-    return () => {
-      if (evidencePreviewUrl !== "") URL.revokeObjectURL(evidencePreviewUrl)
-    }
-  }, [evidencePreviewUrl])
-
   const addGoalItem = (): void => {
     const nextGoal = goalText.trim()
     if (nextGoal === "" || (!goalItems.includes(nextGoal) && goalItems.length >= 5)) return
@@ -499,39 +442,19 @@ export function PrototypeDemo() {
     const nextGoals = goalItems.includes(nextGoal) ? goalItems : [...goalItems, nextGoal]
     demo.dispatch({ titles: nextGoals, type: "replace_goals" })
     setGoalText("")
-    setProbability(null)
-  }
-
-  const beginGoalAnalysis = (): void => {
-    const pendingGoal = goalText.trim()
-    const goalsToAnalyze =
-      pendingGoal !== "" && !goalItems.includes(pendingGoal)
-        ? [...goalItems, pendingGoal]
-        : goalItems
-    if (goalsToAnalyze.length === 0) return
-
-    demo.dispatch({ titles: goalsToAnalyze, type: "replace_goals" })
-    setGoalText("")
-    setAnalyzing(true)
-    analysisTimer.current = window.setTimeout(() => {
-      setProbability(calculateSuccessProbability(goalsToAnalyze.join("\n")))
-      setAnalyzing(false)
-      analysisTimer.current = null
-    }, 1_000)
+    setGoalAnalysisState({ kind: "idle" })
   }
 
   const resetRoutineView = (): void => {
     setCardIndex(0)
     setGoalText("")
-    setEvidencePreviewUrl("")
-    setProbability(null)
-    setAnalyzing(false)
+    setGoalAnalysisState({ kind: "idle" })
     setMarketMessage("")
-    setVerifying(false)
     setStep("predict")
   }
 
   const navigate = (tab: DemoTab): void => {
+    setGoalAnalysisState({ kind: "idle" })
     if (tab === "predict") {
       setStep("predict")
       return
@@ -542,6 +465,17 @@ export function PrototypeDemo() {
     }
     setStep(goalItems.length > 0 ? "listed" : "goal")
   }
+
+  const pendingGoal = goalText.trim()
+  const analysisGoals =
+    pendingGoal !== "" && !goalItems.includes(pendingGoal) && goalItems.length < 5
+      ? [...goalItems, pendingGoal]
+      : goalItems
+  const analysisResult =
+    goalAnalysisState.kind === "success" || goalAnalysisState.kind === "fallback"
+      ? goalAnalysisState.value
+      : null
+  const analyzing = goalAnalysisState.kind === "loading"
 
   if (!demo.hydrated || snapshot === null || demoState === null) {
     return (
@@ -707,7 +641,7 @@ export function PrototypeDemo() {
     return (
       <main className="demoViewport" key="goal">
         <DemoTopBar label="상장" />
-        <section className="demoScreen">
+        <section className="demoScreen demoScrollableScreen">
           <div className="demoHeading">
             <h1>내 목표 상장하기</h1>
           </div>
@@ -723,7 +657,7 @@ export function PrototypeDemo() {
                 maxLength={120}
                 onChange={(event) => {
                   setGoalText(event.target.value)
-                  setProbability(null)
+                  setGoalAnalysisState({ kind: "idle" })
                 }}
                 onKeyDown={(event) => {
                   if (event.key !== "Enter" || event.nativeEvent.isComposing) return
@@ -757,7 +691,7 @@ export function PrototypeDemo() {
                         titles: goalItems.filter((item) => item !== goal),
                         type: "replace_goals",
                       })
-                      setProbability(null)
+                      setGoalAnalysisState({ kind: "idle" })
                     }}
                     type="button"
                   >
@@ -767,45 +701,25 @@ export function PrototypeDemo() {
               ))}
             </ul>
           ) : null}
-          {analyzing ? (
-            <section aria-live="polite" className="analysisCard">
-              <span className="analysisSpinner" role="status">
-                <i />
-                <i />
-                <i />
-              </span>
-              <strong>AI가 목표를 분석하고 있어요</strong>
-              <span>구체성 · 분량 · 실행 시간을 확인해요</span>
-            </section>
-          ) : null}
-          {probability !== null ? (
-            <section aria-label="AI 예상 성공 확률" className="probabilityCard">
-              <span>AI 예상 성공 확률</span>
-              <strong>{probability}%</strong>
-            </section>
-          ) : null}
-          <div className="demoBottomAction">
-            {probability !== null ? (
+          <GoalAnalysisPanel
+            goals={analysisGoals}
+            onAnalysisStart={(goals) => {
+              demo.dispatch({ titles: goals, type: "replace_goals" })
+              setGoalText("")
+            }}
+            onStateChange={setGoalAnalysisState}
+          />
+          {analysisResult === null ? null : (
+            <div className="demoBottomAction">
               <button
                 className="buttonFull demoPrimaryButton"
-                onClick={() => {
-                  setStep("listed")
-                }}
+                onClick={() => setStep("listed")}
                 type="button"
               >
                 이 목표 상장하기
               </button>
-            ) : (
-              <button
-                className="buttonFull demoPrimaryButton"
-                disabled={(goalItems.length === 0 && goalText.trim() === "") || analyzing}
-                onClick={beginGoalAnalysis}
-                type="button"
-              >
-                {analyzing ? "목표 분석 중" : "성공 확률 분석하기"}
-              </button>
-            )}
-          </div>
+            </div>
+          )}
         </section>
         <DemoBottomNav current="goal" onNavigate={navigate} />
       </main>
@@ -813,6 +727,8 @@ export function PrototypeDemo() {
   }
 
   if (step === "listed") {
+    const listedAnalysis =
+      analysisResult ?? analyzeGoalsFallback(GoalAnalysisRequestSchema.parse({ goals: goalItems }))
     return (
       <main className="demoViewport" key="listed">
         <DemoTopBar label="내 목표" />
@@ -835,7 +751,7 @@ export function PrototypeDemo() {
             <dl>
               <div>
                 <dt>AI 성공 확률</dt>
-                <dd>{probability ?? calculateSuccessProbability(goalItems.join("\n"))}%</dd>
+                <dd>{listedAnalysis.probability}%</dd>
               </div>
               <div>
                 <dt>인증 마감</dt>
@@ -858,106 +774,28 @@ export function PrototypeDemo() {
     )
   }
 
-  if (step === "verify" || step === "verified") {
-    const verified = step === "verified"
+  if (step === "verify") {
     return (
-      <main className="demoViewport" key={step}>
+      <main className="demoViewport" key="verify">
         <DemoTopBar label="인증" />
-        <section className="demoScreen">
+        <section className="demoScreen demoScrollableScreen" data-verification-scroll-container>
           <div className="demoHeading">
-            <h1>{verified ? "인증이 끝났어요" : "사진 인증"}</h1>
-            {!verified ? <p>오늘 목표가 보이도록 찍어주세요.</p> : null}
+            <h1>사진 인증</h1>
           </div>
-          {verified ? (
-            <div className="verificationVisual isComplete">
-              <CheckIcon />
-              <strong>목표와 일치해요</strong>
-            </div>
-          ) : (
-            <label className="verificationVisual evidenceSurface">
-              <input
-                accept="image/*"
-                capture="environment"
-                onChange={(event) => {
-                  const file = event.target.files?.[0]
-                  if (file === undefined) return
-                  if (evidencePreviewUrl !== "") URL.revokeObjectURL(evidencePreviewUrl)
-                  setEvidencePreviewUrl(URL.createObjectURL(file))
-                }}
-                type="file"
-              />
-              {evidencePreviewUrl !== "" ? (
-                <>
-                  <Image
-                    alt="선택한 인증 사진"
-                    fill
-                    sizes="(max-width: 390px) 100vw, 390px"
-                    src={evidencePreviewUrl}
-                    unoptimized
-                  />
-                  <span className="replacePhotoLabel">다른 사진 선택</span>
-                </>
-              ) : (
-                <span className="cameraPrompt">
-                  <svg aria-hidden="true" fill="none" viewBox="0 0 48 48">
-                    <rect
-                      height="30"
-                      rx="6"
-                      stroke="currentColor"
-                      strokeWidth="3"
-                      width="38"
-                      x="5"
-                      y="11"
-                    />
-                    <circle cx="24" cy="26" r="7" stroke="currentColor" strokeWidth="3" />
-                    <path
-                      d="M17 11 20 7h8l3 4"
-                      stroke="currentColor"
-                      strokeLinejoin="round"
-                      strokeWidth="3"
-                    />
-                  </svg>
-                  <strong>사진 촬영 또는 선택</strong>
-                </span>
-              )}
-            </label>
-          )}
-          <div className="demoBottomAction">
-            {verified ? (
-              <button
-                className="buttonFull demoPrimaryButton"
-                onClick={() => {
-                  const firstGoal = demoState.goals[0]
-                  if (firstGoal !== undefined) {
-                    demo.dispatch({
-                      amount: 200,
-                      goalId: firstGoal.id,
-                      type: "credit_goal_completion",
-                    })
-                  }
-                  setStep("settle")
-                }}
-                type="button"
-              >
-                정산 결과 보기
-              </button>
-            ) : (
-              <button
-                className="buttonFull demoPrimaryButton"
-                disabled={evidencePreviewUrl === "" || verifying}
-                onClick={() => {
-                  setVerifying(true)
-                  verificationTimer.current = window.setTimeout(() => {
-                    setVerifying(false)
-                    setStep("verified")
-                  }, 1_000)
-                }}
-                type="button"
-              >
-                {verifying ? "사진 확인 중…" : "사진 인증하기"}
-              </button>
-            )}
-          </div>
+          <DemoVerificationSurface
+            goal={goalItems.join(" · ")}
+            onSettled={() => {
+              const firstGoal = demoState.goals[0]
+              if (firstGoal !== undefined) {
+                demo.dispatch({
+                  amount: 200,
+                  goalId: firstGoal.id,
+                  type: "credit_goal_completion",
+                })
+              }
+              setStep("settle")
+            }}
+          />
         </section>
         <DemoBottomNav current="goal" onNavigate={navigate} />
       </main>

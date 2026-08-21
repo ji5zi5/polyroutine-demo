@@ -1,0 +1,221 @@
+.panel {
+  color: var(--text-primary);
+  display: grid;
+  gap: var(--space-4);
+}
+
+.progress {
+  background: var(--surface-secondary);
+  border-radius: var(--radius-xl);
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-4);
+}
+
+.progress strong {
+  font-size: var(--text-body);
+}
+
+.progress span {
+  color: var(--text-secondary);
+  font-size: var(--text-caption);
+}
+
+.result {
+  background: var(--surface-secondary);
+  border: var(--border-width) solid var(--border-default);
+  border-radius: var(--radius-xl);
+  padding: var(--space-5);
+}
+
+.resultHeading {
+  align-items: start;
+  display: flex;
+  gap: var(--space-4);
+  justify-content: space-between;
+}
+
+.eyebrow,
+.metadata,
+.separation,
+.privacyWarning,
+.fallbackNotice,
+.inputError {
+  font-size: var(--text-caption);
+  line-height: var(--leading-body);
+}
+
+.eyebrow {
+  color: var(--text-secondary);
+  display: block;
+  margin-block-end: var(--space-1);
+}
+
+.probability {
+  display: block;
+  font-size: var(--text-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--tracking-display);
+  line-height: var(--leading-display);
+}
+
+.metadata {
+  color: var(--text-secondary);
+  display: grid;
+  justify-items: end;
+}
+
+.metadata span:first-child {
+  color: var(--accent-primary);
+  font-weight: var(--weight-medium);
+}
+
+.separation {
+  color: var(--text-secondary);
+  margin: var(--space-3) 0 0;
+}
+
+.factors {
+  border-block-start: var(--border-width) solid var(--border-default);
+  margin-block-start: var(--space-4);
+  padding-block-start: var(--space-3);
+}
+
+.factors summary {
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: var(--text-body);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-body);
+  min-block-size: var(--target-min);
+  padding-block: var(--space-2);
+}
+
+.factors ul {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-1) 0 0;
+  padding-inline-start: var(--space-5);
+}
+
+.factors li {
+  color: var(--text-secondary);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+
+.actionGroup {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.privacyWarning,
+.fallbackNotice,
+.inputError {
+  margin: 0;
+}
+
+.privacyWarning,
+.fallbackNotice {
+  color: var(--text-secondary);
+  word-break: keep-all;
+}
+
+.inputError {
+  color: var(--status-error);
+}
+
+.action {
+  align-items: center;
+  background: var(--accent-primary);
+  border: 0;
+  border-radius: var(--radius-xl);
+  color: var(--text-on-accent);
+  cursor: pointer;
+  display: inline-flex;
+  font: inherit;
+  font-size: var(--text-body-large);
+  font-weight: var(--weight-strong);
+  inline-size: 100%;
+  justify-content: center;
+  min-block-size: var(--control-xl);
+  padding: var(--space-4) var(--space-5);
+  transition: background-color var(--motion-fast) var(--motion-ease);
+}
+
+.action:active:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.actionSecondary {
+  background: var(--surface-secondary);
+  border: var(--border-width) solid var(--border-default);
+  color: var(--text-primary);
+}
+
+.actionSecondary:active:not(:disabled) {
+  background: var(--surface-elevated);
+}
+
+.action:disabled {
+  cursor: default;
+  opacity: var(--tds-disabled-opacity);
+}
+
+.action:focus-visible,
+.factors summary:focus-visible {
+  outline: var(--focus-width) solid var(--focus);
+  outline-offset: var(--space-1);
+}
+
+.actionContent {
+  align-items: center;
+  animation: state-swap var(--motion-base) var(--motion-ease-out);
+  display: inline-flex;
+  gap: var(--space-2);
+}
+
+.loadingDots {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--space-1);
+}
+
+.loadingDots i {
+  animation: dot-pulse var(--motion-slow) var(--motion-ease) infinite alternate;
+  background: currentcolor;
+  block-size: var(--space-1);
+  border-radius: var(--radius-pill);
+  inline-size: var(--space-1);
+}
+
+.loadingDots i:nth-child(2) {
+  animation-delay: var(--motion-fast);
+}
+
+.loadingDots i:nth-child(3) {
+  animation-delay: var(--motion-base);
+}
+
+@keyframes state-swap {
+  from {
+    filter: blur(var(--space-1));
+    opacity: 0;
+    transform: translateY(var(--space-1));
+  }
+}
+
+@keyframes dot-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .action,
+  .actionContent,
+  .loadingDots i {
+    animation: none;
+    transition: none;
+  }
+}

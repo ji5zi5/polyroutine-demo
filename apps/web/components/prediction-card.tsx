@@ -193,7 +193,7 @@ export function PredictionCard({
           </span>
           <div className="predictionSignals">
             <span className="aliasBadge">{card.anonymousAlias}</span>
-            <span className="aiEstimate">AI 예상 {card.aiPercent ?? 50}%</span>
+            <span className="aiEstimate">예시 모델 추정 {card.aiPercent ?? 50}%</span>
           </div>
           <div className="predictionCardBody">
             <PredictionGoalContent card={card} />

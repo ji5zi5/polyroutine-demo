@@ -1,12 +1,12 @@
 import { z } from "zod"
-import type { StagedPhoto } from "./verification-types.js"
+import type { StagedPhoto } from "./verification-types"
 
 export const ACCEPTED_IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const
 export const MAX_STAGED_PHOTO_BYTES = 10 * 1024 * 1024
 export const PHOTO_CHECK_DELAY_MS = 1_000
 
 export const PHOTO_VERIFICATION_ERROR_MESSAGES = {
-  "non-image": "이미지 파일만 선택할 수 있어요.",
+  "non-image": "PNG·JPG·WEBP 이미지만 선택해 주세요.",
   oversize: "사진은 10MB 이하만 선택할 수 있어요.",
   "preview-creation-failed": "사진 미리보기를 만들 수 없어요. 다시 시도해 주세요.",
   "unreadable-file": "사진 파일을 읽을 수 없어요. 다시 선택해 주세요.",

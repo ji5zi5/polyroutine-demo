@@ -3,7 +3,7 @@ import {
   MAX_STAGED_PHOTO_BYTES,
   type PhotoVerificationDependencies,
   type StagedPhoto,
-} from "./verification-model.js"
+} from "./verification-model"
 
 type TraceScheduler = {
   readonly cancelCount: () => number

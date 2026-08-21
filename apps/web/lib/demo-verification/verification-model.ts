@@ -2,22 +2,22 @@ import {
   PHOTO_CHECK_DELAY_MS,
   type PhotoVerificationError,
   selectionError,
-} from "./verification-policy.js"
-import { persistedState, previewUrlFor } from "./verification-projection.js"
+} from "./verification-policy"
+import { persistedState, previewUrlFor } from "./verification-projection"
 import type {
   PersistedPhotoVerificationState,
   PhotoVerificationDependencies,
   PhotoVerificationState,
   StagedPhoto,
-} from "./verification-types.js"
+} from "./verification-types"
 
-export type { PhotoVerificationError } from "./verification-policy.js"
+export type { PhotoVerificationError } from "./verification-policy"
 export {
   ACCEPTED_IMAGE_MIME_TYPES,
   MAX_STAGED_PHOTO_BYTES,
   PHOTO_CHECK_DELAY_MS,
   PHOTO_VERIFICATION_ERROR_MESSAGES,
-} from "./verification-policy.js"
+} from "./verification-policy"
 export type {
   PersistedPhotoVerificationState,
   PhotoVerificationDependencies,
@@ -26,7 +26,7 @@ export type {
   PreviewUrlResult,
   ReadFileResult,
   StagedPhoto,
-} from "./verification-types.js"
+} from "./verification-types"
 
 export const VERIFICATION_STATE_KINDS = [
   "idle",

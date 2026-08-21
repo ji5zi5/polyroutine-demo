@@ -1,0 +1,195 @@
+.surface {
+  background: var(--surface-elevated);
+  border: var(--border-width) solid var(--border-default);
+  border-radius: var(--radius-panel);
+  display: grid;
+  gap: var(--space-4);
+  max-inline-size: var(--measure-card);
+  padding: var(--space-5);
+}
+
+.heading,
+.context,
+.actions {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.heading p,
+.status p,
+.error p,
+.context dt {
+  color: var(--text-secondary);
+}
+
+.context {
+  background: var(--surface-secondary);
+  border-radius: var(--radius-xl);
+  padding: var(--space-3);
+}
+
+.context div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.context dt {
+  font-size: var(--text-caption);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-caption);
+}
+
+.context dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.preview {
+  aspect-ratio: var(--capture-frame-ratio);
+  background: var(--surface-secondary);
+  border-radius: var(--radius-xl);
+  display: grid;
+  inline-size: 100%;
+  justify-self: center;
+  max-inline-size: calc(var(--space-20) + var(--space-16) + var(--space-16));
+  overflow: hidden;
+  margin: 0;
+  position: relative;
+}
+
+.previewImage {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+.status,
+.error,
+.success {
+  animation: verification-status-enter var(--motion-base) var(--motion-ease-out);
+  border-radius: var(--radius-l);
+  padding: var(--space-3);
+}
+
+.status {
+  background: var(--surface-secondary);
+}
+
+.error {
+  color: var(--status-error);
+  background: var(--status-error-soft);
+}
+
+.success {
+  color: var(--status-success);
+  background: var(--status-success-soft);
+}
+
+.error p,
+.success p {
+  color: inherit;
+}
+
+.actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.actions > :only-child {
+  grid-column: 1 / -1;
+}
+
+.fileSelect,
+.primaryAction,
+.secondaryAction,
+.resetAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: var(--control-xl);
+  padding-inline: var(--space-5);
+  font-size: var(--text-body);
+  font-weight: var(--weight-strong);
+  line-height: var(--leading-body);
+  text-align: center;
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-xl);
+  cursor: pointer;
+  transition: transform var(--motion-fast) var(--motion-ease);
+}
+
+.fileSelect,
+.secondaryAction,
+.resetAction {
+  color: var(--text-primary);
+  background: var(--surface-secondary);
+  border-color: var(--border-default);
+}
+
+.primaryAction {
+  color: var(--text-on-accent);
+  background: var(--accent-primary);
+}
+
+.primaryAction:disabled,
+.fileSelect:has(.fileInput:disabled) {
+  cursor: not-allowed;
+  opacity: var(--tds-disabled-opacity);
+}
+
+.fileSelect:focus-within,
+.primaryAction:focus-visible,
+.secondaryAction:focus-visible,
+.resetAction:focus-visible {
+  outline: var(--focus-width) solid var(--focus);
+  outline-offset: var(--space-1);
+}
+
+.fileSelect:active,
+.primaryAction:active:not(:disabled),
+.secondaryAction:active,
+.resetAction:active {
+  transform: translateY(var(--press-distance));
+}
+
+.fileInput {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+
+.fileSelect {
+  position: relative;
+  overflow: hidden;
+}
+
+.resetAction {
+  grid-column: 1 / -1;
+}
+
+@keyframes verification-status-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--space-1));
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status,
+  .error,
+  .success {
+    animation: none;
+  }
+
+  .fileSelect,
+  .primaryAction,
+  .secondaryAction,
+  .resetAction {
+    transition: none;
+  }
+}
