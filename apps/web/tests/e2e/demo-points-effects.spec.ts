@@ -25,7 +25,7 @@ test("settling a correct prediction confirms the earned payout", async ({ page }
   const feedback = page.getByText("+278P 적중", { exact: true })
   await expect(feedback).toBeVisible()
   await expect(page.getByText("51,378점", { exact: true })).toBeVisible()
-  await expect(page.locator(".pointsCard")).toHaveAttribute("data-settled", "true")
+  await expect(page.locator("[data-points-settled]")).toHaveAttribute("data-points-settled", "true")
 
   const colors = await feedback.evaluate((element) => {
     const secondary = document.querySelector(".marketPortfolio > div span")

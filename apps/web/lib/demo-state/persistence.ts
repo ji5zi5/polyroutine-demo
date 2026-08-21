@@ -1,10 +1,44 @@
 import { z } from "zod"
+import { parseDemoState } from "./domain"
 import type { DemoState } from "./schema"
 import { demoStateSchema } from "./schema"
 
 export const DEMO_STATE_STORAGE_KEY = "poly-routine-demo-state:v1"
 const MAX_PERSISTED_CHARACTERS = 1_000_000
 const versionFieldSchema = z.object({ version: z.unknown() })
+const legacyCouponSchema = z.union([
+  z.object({
+    catalogId: z.string().min(1),
+    cost: z.number().int().positive(),
+    id: z.string().min(1),
+    label: z.string().min(1),
+    purchaseEventId: z.string().min(1),
+    status: z.literal("available"),
+  }),
+  z.object({
+    catalogId: z.string().min(1),
+    cost: z.number().int().positive(),
+    id: z.string().min(1),
+    label: z.string().min(1),
+    purchaseEventId: z.string().min(1),
+    status: z.literal("used"),
+    useId: z.string().min(1),
+    usedAt: z.iso.datetime(),
+  }),
+])
+const legacySnapshotSchema = z
+  .object({
+    state: z
+      .object({
+        coupons: z.array(legacyCouponSchema),
+        createdAt: z.iso.datetime(),
+        ledger: z.array(
+          z.object({ id: z.string().min(1), occurredAt: z.iso.datetime() }).passthrough(),
+        ),
+      })
+      .passthrough(),
+  })
+  .passthrough()
 
 export const demoPersistenceSchema = z
   .object({
@@ -58,9 +92,15 @@ export type HydrateDemoStateResult =
 export function saveDemoState(storage: DemoStorage, input: unknown): SaveDemoStateResult {
   const parsed = demoPersistenceSchema.safeParse(input)
   if (!parsed.success) return { kind: "invalid", reason: "schema_mismatch" }
+  let snapshot: DemoPersistenceSnapshot
   try {
-    storage.setItem(DEMO_STATE_STORAGE_KEY, JSON.stringify(parsed.data))
-    return { kind: "saved", snapshot: parsed.data }
+    snapshot = { ...parsed.data, state: parseDemoState(parsed.data.state) }
+  } catch {
+    return { kind: "invalid", reason: "schema_mismatch" }
+  }
+  try {
+    storage.setItem(DEMO_STATE_STORAGE_KEY, JSON.stringify(snapshot))
+    return { kind: "saved", snapshot }
   } catch (error) {
     return persistenceFailure("write", error)
   }
@@ -70,7 +110,8 @@ export function hydrateDemoState(
   storage: DemoStorage,
   createInitialSnapshot: () => DemoPersistenceSnapshot,
 ): HydrateDemoStateResult {
-  const initial = demoPersistenceSchema.parse(createInitialSnapshot())
+  const initialSnapshot = demoPersistenceSchema.parse(createInitialSnapshot())
+  const initial = { ...initialSnapshot, state: parseDemoState(initialSnapshot.state) }
   let raw: string | null
   try {
     raw = storage.getItem(DEMO_STATE_STORAGE_KEY)
@@ -93,9 +134,40 @@ export function hydrateDemoState(
   if (versionField.success && versionField.data.version !== 1) {
     return recoverInitialState(storage, initial, "unknown_version")
   }
-  const parsed = demoPersistenceSchema.safeParse(decoded)
+  const migrated = migrateLegacyCoupons(decoded)
+  const parsed = demoPersistenceSchema.safeParse(migrated)
   if (!parsed.success) return recoverInitialState(storage, initial, "schema_mismatch")
-  return { kind: "hydrated", snapshot: parsed.data }
+  try {
+    const snapshot = { ...parsed.data, state: parseDemoState(parsed.data.state) }
+    return { kind: "hydrated", snapshot }
+  } catch {
+    return recoverInitialState(storage, initial, "schema_mismatch")
+  }
+}
+
+function migrateLegacyCoupons(input: unknown): unknown {
+  const legacy = legacySnapshotSchema.safeParse(input)
+  if (!legacy.success || legacy.data.state.coupons.length === 0) return input
+  const state = legacy.data.state
+  return {
+    ...legacy.data,
+    state: {
+      ...state,
+      coupons: state.coupons.map((coupon) => {
+        const purchase = state.ledger.find((event) => event.id === coupon.purchaseEventId)
+        return {
+          catalogId: coupon.catalogId,
+          cost: coupon.cost,
+          id: coupon.id,
+          label: coupon.label,
+          purchaseEventId: coupon.purchaseEventId,
+          purchasedAt: purchase?.occurredAt ?? state.createdAt,
+          useId: coupon.status === "used" ? coupon.useId : null,
+          usedAt: coupon.status === "used" ? coupon.usedAt : null,
+        }
+      }),
+    },
+  }
 }
 
 export function resetDemoState(storage: DemoStorage): ResetDemoStateResult {
@@ -112,7 +184,12 @@ export function createDemoPersistenceSnapshot(
   email: string,
   state: DemoState,
 ): DemoPersistenceSnapshot {
-  return demoPersistenceSchema.parse({ authenticated, email, state, version: 1 })
+  return demoPersistenceSchema.parse({
+    authenticated,
+    email,
+    state: parseDemoState(state),
+    version: 1,
+  })
 }
 
 function persistenceFailure<Operation extends PersistenceOperation>(

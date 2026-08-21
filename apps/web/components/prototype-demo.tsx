@@ -2,85 +2,30 @@
 
 import Image from "next/image"
 import { useEffect, useRef, useState } from "react"
+import { couponCatalog, type RewardProduct } from "../lib/demo-coupons"
 import type { GoalAnalysisState } from "../lib/demo-goal-analysis/client/use-goal-analysis"
 import { GoalAnalysisRequestSchema } from "../lib/demo-goal-analysis/contract"
 import { analyzeGoalsFallback } from "../lib/demo-goal-analysis/fallback"
 import {
+  type DemoAction,
+  type DemoState,
   type MarketPosition,
   type MarketRoundHistory,
   selectMarketRoundHistory,
   selectPendingMarketPositions,
 } from "../lib/demo-state"
 import { GoalAnalysisPanel } from "./demo-goal-analysis/goal-analysis-panel"
-import { PortfolioHistory } from "./demo-market/portfolio-history"
+import { DemoPointsTab } from "./demo-points/demo-points-tab"
 import { demoPredictionOutcomes, predictionCards } from "./demo-prediction-cards"
 import { usePersistentDemoState } from "./demo-state/use-persistent-demo-state"
 import { DemoVerificationSurface } from "./demo-verification/demo-verification-surface"
 import { PredictionCard } from "./prediction-card"
 
-const rewardCatalog = [
-  {
-    cost: 50_000,
-    id: "convenience",
-    imageSrc: "/rewards/gs25-1000.jpg",
-    name: "GS25 모바일 상품권 1천원권",
-  },
-  {
-    cost: 200_000,
-    id: "americano",
-    imageSrc: "/rewards/americano-coupon.png",
-    name: "아이스 아메리카노",
-  },
-  {
-    cost: 260_000,
-    id: "starbucks-latte",
-    imageSrc: "/rewards/starbucks-latte.jpg",
-    name: "스타벅스 아이스 카페 라떼T",
-  },
-  {
-    cost: 120_000,
-    id: "mcdonald-sundae",
-    imageSrc: "/rewards/mcdonald-sundae.jpg",
-    name: "맥도날드 초코 선데이",
-  },
-  {
-    cost: 500_000,
-    id: "naverpay-10000",
-    imageSrc: "/rewards/naverpay-10000.jpg",
-    name: "네이버페이 포인트 10,000원",
-  },
-  {
-    cost: 50_000,
-    id: "oliveyoung-1000",
-    imageSrc: "/rewards/oliveyoung-1000.png",
-    name: "올리브영 모바일 상품권 1,000원",
-  },
-  {
-    cost: 250_000,
-    id: "shinsegae-5000",
-    imageSrc: "/rewards/shinsegae-5000.jpg",
-    name: "신세계상품권 5천원권",
-  },
-  {
-    cost: 1_500_000,
-    id: "baskin-30000",
-    imageSrc: "/rewards/baskin-30000.jpg",
-    name: "배스킨라빈스 교환권 30,000원",
-  },
-] as const
-
-type RewardItem = (typeof rewardCatalog)[number]
-type RewardId = RewardItem["id"]
+type RewardItem = RewardProduct
+type RewardId = RewardProduct["id"]
 
 function isRewardId(value: string): value is RewardId {
-  return rewardCatalog.some((reward) => reward.id === value)
-}
-
-function localDate(date: Date): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, "0")
-  const day = String(date.getDate()).padStart(2, "0")
-  return `${year}-${month}-${day}`
+  return couponCatalog.some((reward) => reward.id === value)
 }
 
 type DemoStep = "goal" | "listed" | "points" | "predict" | "profile" | "settle" | "verify"
@@ -142,49 +87,23 @@ function RewardImage({ reward }: { readonly reward: RewardItem }) {
   )
 }
 
-type PointsScreenProps = {
-  readonly attendanceClaimed: boolean
-  readonly onClaimAttendance: () => void
-  readonly onNavigate: (tab: DemoTab) => void
-  readonly onPurchase: (reward: RewardItem) => void
-  readonly onSettlePredictions: () => void
-  readonly pendingPositions: readonly MarketPosition[]
-  readonly points: number
-  readonly rounds: readonly MarketRoundHistory[]
-}
+type PointsScreenProps = Readonly<{
+  now: Date
+  onNavigate: (tab: DemoTab) => void
+  pendingPositions: readonly MarketPosition[]
+  rounds: readonly MarketRoundHistory[]
+  state: DemoState
+  onDispatch: (action: DemoAction) => void
+}>
 
 function PointsScreen({
-  attendanceClaimed,
-  onClaimAttendance,
+  now,
+  onDispatch,
   onNavigate,
-  onPurchase,
-  onSettlePredictions,
   pendingPositions,
-  points,
   rounds,
+  state,
 }: PointsScreenProps) {
-  const attendanceDialogRef = useRef<HTMLDialogElement>(null)
-  const rewardDialogRef = useRef<HTMLDialogElement>(null)
-  const [attendanceOpen, setAttendanceOpen] = useState(false)
-  const [selectedReward, setSelectedReward] = useState<RewardItem | null>(null)
-  const [settlementFeedback, setSettlementFeedback] = useState<number | null>(null)
-
-  useEffect(() => {
-    const dialog = attendanceDialogRef.current
-    if (attendanceOpen && dialog !== null && !dialog.open) dialog.showModal()
-  }, [attendanceOpen])
-
-  useEffect(() => {
-    const dialog = rewardDialogRef.current
-    if (selectedReward !== null && dialog !== null && !dialog.open) dialog.showModal()
-  }, [selectedReward])
-
-  useEffect(() => {
-    if (settlementFeedback === null) return
-    const timer = window.setTimeout(() => setSettlementFeedback(null), 800)
-    return () => window.clearTimeout(timer)
-  }, [settlementFeedback])
-
   return (
     <main className="demoViewport" key="points">
       <DemoTopBar label="포인트" />
@@ -192,160 +111,15 @@ function PointsScreen({
         <div className="demoHeading">
           <h1>내 포인트</h1>
         </div>
-        <section className="pointsCard" data-settled={settlementFeedback !== null}>
-          <span>보유 포인트</span>
-          <strong>{points.toLocaleString("ko-KR")}점</strong>
-          <button
-            className="attendanceButton buttonQuiet"
-            onClick={() => setAttendanceOpen(true)}
-            type="button"
-          >
-            {attendanceClaimed ? "오늘 출석 완료" : "출석체크"}
-          </button>
-        </section>
-        {pendingPositions.length === 0 && settlementFeedback === null ? null : (
-          <section className="marketPortfolio">
-            <div>
-              <span>예측 포지션</span>
-              <strong>
-                {settlementFeedback === null
-                  ? `투자 ${(pendingPositions.length * 100).toLocaleString("ko-KR")}P · ${pendingPositions.length}건 대기`
-                  : `적중 정산 +${settlementFeedback}P`}
-              </strong>
-            </div>
-            <button
-              aria-live="polite"
-              className={
-                settlementFeedback !== null ? "buttonQuiet settlementFeedbackButton" : "buttonQuiet"
-              }
-              disabled={settlementFeedback !== null}
-              onClick={() => {
-                if (settlementFeedback !== null) return
-                setSettlementFeedback(
-                  pendingPositions.reduce(
-                    (total, position) =>
-                      position.choice === position.fixtureOutcome
-                        ? total + position.grossPayout
-                        : total,
-                    0,
-                  ),
-                )
-                onSettlePredictions()
-              }}
-              type="button"
-            >
-              {settlementFeedback === null ? "예측 결과 정산하기" : `+${settlementFeedback}P 적중`}
-            </button>
-          </section>
-        )}
-        {pendingPositions.length === 0 && rounds.length === 0 ? null : (
-          <PortfolioHistory pendingPositions={pendingPositions} rounds={rounds} />
-        )}
-        <section className="rewardShop">
-          <h2>포인트 상점</h2>
-          <div className="rewardGrid">
-            {rewardCatalog.map((reward) => {
-              return (
-                <article className="rewardProduct" key={reward.id}>
-                  <RewardImage reward={reward} />
-                  <h3>{reward.name}</h3>
-                  <button
-                    aria-label={`${reward.name} ${reward.cost.toLocaleString("ko-KR")}P로 구매`}
-                    className="rewardBuyButton"
-                    disabled={points < reward.cost}
-                    onClick={() => setSelectedReward(reward)}
-                    type="button"
-                  >
-                    {reward.cost.toLocaleString("ko-KR")}P
-                  </button>
-                </article>
-              )
-            })}
-          </div>
-        </section>
+        <DemoPointsTab
+          now={now}
+          onDispatch={onDispatch}
+          pendingPositions={pendingPositions}
+          rounds={rounds}
+          state={state}
+        />
       </section>
       <DemoBottomNav current="points" onNavigate={onNavigate} />
-      {attendanceOpen ? (
-        <dialog
-          aria-labelledby="attendance-sheet-title"
-          className="attendanceSheet"
-          onCancel={() => setAttendanceOpen(false)}
-          ref={attendanceDialogRef}
-        >
-          <div className="attendanceSheetHeading">
-            <span>연속 4일째</span>
-            <h2 id="attendance-sheet-title">8월 출석체크</h2>
-          </div>
-          <figure aria-label="2026년 8월 출석 달력" className="attendanceCalendar">
-            {["일", "월", "화", "수", "목", "금", "토"].map((weekday) => (
-              <span className="attendanceWeekday" key={weekday}>
-                {weekday}
-              </span>
-            ))}
-            {["sun", "mon", "tue", "wed", "thu", "fri"].map((weekday) => (
-              <span aria-hidden="true" key={`blank-${weekday}`} />
-            ))}
-            {Array.from({ length: 31 }, (_, index) => {
-              const day = index + 1
-              const attended = day >= 17 && day <= 19
-              const today = day === 20
-              return (
-                <span
-                  aria-current={today ? "date" : undefined}
-                  className={attended || (today && attendanceClaimed) ? "isAttended" : undefined}
-                  key={day}
-                >
-                  {attended || (today && attendanceClaimed) ? "✓" : day}
-                </span>
-              )
-            })}
-          </figure>
-          <button
-            className="buttonFull"
-            disabled={attendanceClaimed}
-            onClick={() => {
-              onClaimAttendance()
-              setAttendanceOpen(false)
-            }}
-            type="button"
-          >
-            {attendanceClaimed ? "오늘 출석 완료 · +200P" : "오늘 출석하기 · +200P"}
-          </button>
-          <button
-            className="attendanceClose"
-            onClick={() => setAttendanceOpen(false)}
-            type="button"
-          >
-            닫기
-          </button>
-        </dialog>
-      ) : null}
-      {selectedReward === null ? null : (
-        <dialog
-          aria-labelledby="reward-sheet-title"
-          className="rewardSheet"
-          onCancel={() => setSelectedReward(null)}
-          ref={rewardDialogRef}
-        >
-          <RewardImage reward={selectedReward} />
-          <h2 id="reward-sheet-title">{selectedReward.name}</h2>
-          <p>{selectedReward.cost.toLocaleString("ko-KR")}점을 사용할게요.</p>
-          <div className="rewardSheetActions">
-            <button className="buttonQuiet" onClick={() => setSelectedReward(null)} type="button">
-              취소
-            </button>
-            <button
-              onClick={() => {
-                onPurchase(selectedReward)
-                setSelectedReward(null)
-              }}
-              type="button"
-            >
-              구매하기
-            </button>
-          </div>
-        </dialog>
-      )}
     </main>
   )
 }
@@ -355,7 +129,7 @@ function PurchasedRewards({
 }: {
   readonly purchasedRewardIds: readonly RewardId[]
 }) {
-  const purchasedRewards = rewardCatalog
+  const purchasedRewards = couponCatalog
     .map((reward) => ({
       count: purchasedRewardIds.filter((id) => id === reward.id).length,
       reward,
@@ -412,8 +186,6 @@ export function PrototypeDemo() {
   const points = demoState?.balance ?? 0
   const pendingPositions = demoState === null ? [] : selectPendingMarketPositions(demoState)
   const marketRounds = demoState === null ? [] : selectMarketRoundHistory(demoState)
-  const attendanceClaimed =
-    demoState?.attendance.some((claim) => claim.localDate === localDate(new Date())) ?? false
   const purchasedRewardIds =
     demoState?.coupons
       .map((coupon) => coupon.catalogId)
@@ -803,28 +575,16 @@ export function PrototypeDemo() {
   }
 
   if (step === "points") {
+    if (demo.now === null) return null
     return (
       <PointsScreen
-        attendanceClaimed={attendanceClaimed}
         key="points"
-        onClaimAttendance={() => {
-          demo.dispatch({ amount: 200, localDate: localDate(new Date()), type: "claim_attendance" })
-        }}
+        now={demo.now}
+        onDispatch={demo.dispatch}
         onNavigate={navigate}
-        onPurchase={(reward) => {
-          demo.dispatch({
-            catalogId: reward.id,
-            cost: reward.cost,
-            label: reward.name,
-            type: "purchase_coupon",
-          })
-        }}
-        onSettlePredictions={() => {
-          demo.dispatch({ roundId: demoState.round.id, type: "settle_market_round" })
-        }}
         pendingPositions={pendingPositions}
-        points={points}
         rounds={marketRounds}
+        state={demoState}
       />
     )
   }

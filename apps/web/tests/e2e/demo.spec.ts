@@ -141,7 +141,7 @@ test("demo completes the mobile prediction routine", async ({ page }) => {
   await expect(page.getByText("적중 정산 +451P", { exact: true })).toBeVisible()
   await expect(page.getByText("51,251점", { exact: true })).toBeVisible()
   await expect(page.getByRole("heading", { name: "포인트 상점" })).toBeVisible()
-  await expect(page.locator(".rewardProduct")).toHaveCount(8)
+  await expect(page.locator("[data-shop-product]")).toHaveCount(8)
   await expect(page.getByText("1,500,000P", { exact: true })).toBeVisible()
   await expect(page.getByRole("img", { name: "스타벅스 아이스 카페 라떼T" })).toBeVisible()
   await expect(page.getByRole("img", { name: "네이버페이 포인트 10,000원" })).toBeVisible()

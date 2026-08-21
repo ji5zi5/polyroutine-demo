@@ -21,6 +21,7 @@
   --tds-line-subtle: oklch(0 0 0 / 8%);
   --tds-line-strong: oklch(0.752 0.016 251);
   --tds-press-overlay: oklch(0 0 0 / 26%);
+  --tds-bg-overlay: oklch(0 0 0 / 56%);
   --tds-disabled-opacity: 0.3;
   --surface-primary: var(--tds-bg-primary);
   --surface-secondary: var(--tds-bg-secondary);

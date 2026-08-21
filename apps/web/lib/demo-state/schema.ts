@@ -1,10 +1,13 @@
 import { z } from "zod"
+import { couponInstanceSchema } from "../demo-coupons/coupon-types"
 
 const idSchema = z.string().min(1)
 const positivePointsSchema = z.number().int().positive()
 const localDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/)
 const occurredAtSchema = z.iso.datetime()
 const choiceSchema = z.union([z.literal("yes"), z.literal("no")])
+
+export const ATTENDANCE_CREDIT_POINTS = 200 as const
 
 const profileSchema = z
   .object({
@@ -91,35 +94,11 @@ const attendanceSchema = z
   })
   .readonly()
 
-const availableCouponSchema = z
-  .object({
-    catalogId: idSchema,
-    cost: positivePointsSchema,
-    id: idSchema,
-    label: z.string().min(1),
-    purchaseEventId: idSchema,
-    status: z.literal("available"),
-  })
-  .readonly()
-
-const usedCouponSchema = z
-  .object({
-    catalogId: idSchema,
-    cost: positivePointsSchema,
-    id: idSchema,
-    label: z.string().min(1),
-    purchaseEventId: idSchema,
-    status: z.literal("used"),
-    useId: idSchema,
-    usedAt: occurredAtSchema,
-  })
-  .readonly()
-
 export const demoStateSchema = z
   .object({
     attendance: z.array(attendanceSchema).readonly(),
     balance: z.number().int().nonnegative(),
-    coupons: z.array(z.union([availableCouponSchema, usedCouponSchema])).readonly(),
+    coupons: z.array(couponInstanceSchema).readonly(),
     createdAt: occurredAtSchema,
     goals: z.array(goalSchema).max(5).readonly(),
     initialBalance: z.number().int().nonnegative(),
@@ -143,7 +122,7 @@ export const demoActionSchema = z.discriminatedUnion("type", [
     .readonly(),
   z
     .object({
-      amount: positivePointsSchema,
+      amount: z.literal(ATTENDANCE_CREDIT_POINTS),
       localDate: localDateSchema,
       type: z.literal("claim_attendance"),
     })

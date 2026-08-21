@@ -118,7 +118,7 @@ describe("demo state invariant probe", () => {
     console.log(`TASK_01_INVARIANTS=${JSON.stringify(probe)}`)
     expect(probe.initialBalance).toBe(51_200)
     expect(probe.settledBalance).toBe(expectedBalance)
-    expect(probe.coupon?.status).toBe("used")
+    expect(probe.coupon?.usedAt).not.toBeNull()
     expect(settlementReplayed).toBe(settled)
     expect(attendanceReplayed).toBe(attended)
     expect(couponUseReplayed).toBe(finalState)

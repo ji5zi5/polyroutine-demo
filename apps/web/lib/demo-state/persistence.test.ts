@@ -176,6 +176,46 @@ describe("device-local demo persistence", () => {
   })
 
   it.each([
+    [
+      "duplicate ledger IDs",
+      (snapshot: DemoPersistenceSnapshot) => ({
+        ...snapshot,
+        state: {
+          ...snapshot.state,
+          ledger: snapshot.state.ledger.map((event, index) =>
+            index === 1 ? { ...event, id: snapshot.state.ledger[0]?.id ?? event.id } : event,
+          ),
+        },
+      }),
+    ],
+    [
+      "a balance that disagrees with its ledger",
+      (snapshot: DemoPersistenceSnapshot) => ({
+        ...snapshot,
+        state: { ...snapshot.state, balance: snapshot.state.balance + 1 },
+      }),
+    ],
+  ] as const)("scoped-resets structurally valid state with %s", (_caseName, corrupt) => {
+    // Given: structurally valid persisted JSON that violates a full domain invariant
+    const storage = new MemoryStorage()
+    storage.values.set(DEMO_STATE_STORAGE_KEY, JSON.stringify(corrupt(realisticSnapshot())))
+    storage.values.set(SENTINEL_KEY, "keep-me")
+
+    // When: hydration crosses the untrusted storage boundary
+    const hydrated = hydrateDemoState(storage, initialSnapshot)
+
+    // Then: the demo key alone is reset rather than hydrating invalid state
+    expect(hydrated).toEqual({
+      kind: "recovered",
+      reason: "schema_mismatch",
+      reset: { kind: "reset" },
+      snapshot: initialSnapshot(),
+    })
+    expect(storage.values.get(DEMO_STATE_STORAGE_KEY)).toBeUndefined()
+    expect(storage.values.get(SENTINEL_KEY)).toBe("keep-me")
+  })
+
+  it.each([
     ["corrupt_json", "{not-json"],
     ["unknown_version", JSON.stringify({ ...realisticSnapshot(), version: 2 })],
     ["schema_mismatch", JSON.stringify({ version: 1, authenticated: true })],
@@ -236,5 +276,37 @@ describe("device-local demo persistence", () => {
     expect(replay).toEqual({ kind: "reset" })
     expect(storage.values.get(DEMO_STATE_STORAGE_KEY)).toBeUndefined()
     expect(storage.values.get(SENTINEL_KEY)).toBe("keep-me")
+  })
+
+  it("migrates an existing v1 coupon that predates purchase timestamps without losing its debit", () => {
+    // Given: a previously valid v1 snapshot whose available coupon has no timestamp fields
+    const storage = new MemoryStorage()
+    const current = realisticSnapshot()
+    const legacy = {
+      ...current,
+      state: {
+        ...current.state,
+        coupons: current.state.coupons.map(
+          ({ purchasedAt: _purchasedAt, useId: _useId, usedAt: _usedAt, ...coupon }) => ({
+            ...coupon,
+            status: "available",
+          }),
+        ),
+      },
+    }
+    storage.values.set(DEMO_STATE_STORAGE_KEY, JSON.stringify(legacy))
+
+    // When: the current persistence boundary hydrates the old device data
+    const hydrated = hydrateDemoState(storage, initialSnapshot)
+
+    // Then: it migrates deterministically from the matching purchase ledger event
+    expect(hydrated.kind).toBe("hydrated")
+    if (hydrated.kind !== "hydrated") return
+    expect(hydrated.snapshot.state.coupons[0]).toMatchObject({
+      purchasedAt: "2026-08-21T09:00:00.000Z",
+      useId: null,
+      usedAt: null,
+    })
+    expect(hydrated.snapshot.state.ledger).toEqual(current.state.ledger)
   })
 })

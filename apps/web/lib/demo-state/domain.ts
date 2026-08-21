@@ -1,5 +1,5 @@
 import type { DemoAction, DemoState, LedgerEvent, MarketPosition } from "./schema"
-import { demoStateSchema } from "./schema"
+import { ATTENDANCE_CREDIT_POINTS, demoStateSchema } from "./schema"
 
 export type DemoDependencies = Readonly<{
   createId: () => string
@@ -62,18 +62,34 @@ function duplicates(values: readonly string[]): boolean {
   return new Set(values).size !== values.length
 }
 
+function allocatedIds(state: DemoState): readonly string[] {
+  return [
+    state.profile.id,
+    state.round.id,
+    ...state.goals.map((goal) => goal.id),
+    ...state.positions.map((position) => position.id),
+    ...state.marketHistory.map((position) => position.id),
+    ...state.settledRoundIds,
+    ...state.ledger.map((event) => event.id),
+    ...state.coupons.flatMap((coupon) =>
+      coupon.useId === null ? [coupon.id] : [coupon.id, coupon.useId],
+    ),
+  ]
+}
+
 export function validateDemoInvariants(state: DemoState): DemoInvariantResult {
   const violations: string[] = []
   if (ledgerBalance(state) !== state.balance) violations.push("balance_mismatch")
   if (state.balance < 0) violations.push("negative_balance")
   if (duplicates(state.ledger.map((event) => event.id))) violations.push("duplicate_event_id")
+  if (duplicates(allocatedIds(state))) violations.push("duplicate_allocated_id")
   if (duplicates(state.settledRoundIds)) violations.push("duplicate_round_settlement")
   if (duplicates(state.attendance.map((claim) => claim.localDate))) {
     violations.push("duplicate_attendance_date")
   }
   if (duplicates(state.coupons.map((coupon) => coupon.id))) violations.push("duplicate_coupon_id")
   if (
-    duplicates(state.coupons.flatMap((coupon) => (coupon.status === "used" ? [coupon.useId] : [])))
+    duplicates(state.coupons.flatMap((coupon) => (coupon.useId === null ? [] : [coupon.useId])))
   ) {
     violations.push("duplicate_coupon_use")
   }
@@ -107,24 +123,13 @@ export function createInitialDemoState(dependencies: DemoDependencies): DemoStat
   })
 }
 
-function allocatedIds(state: DemoState): readonly string[] {
-  return [
-    state.profile.id,
-    state.round.id,
-    ...state.goals.map((goal) => goal.id),
-    ...state.positions.map((position) => position.id),
-    ...state.marketHistory.map((position) => position.id),
-    ...state.settledRoundIds,
-    ...state.ledger.map((event) => event.id),
-    ...state.coupons.flatMap((coupon) =>
-      coupon.status === "used" ? [coupon.id, coupon.useId] : [coupon.id],
-    ),
-  ]
-}
-
-export function allocateId(state: DemoState, dependencies: DemoDependencies): string {
+export function allocateId(
+  state: DemoState,
+  dependencies: DemoDependencies,
+  reservedIds: readonly string[] = [],
+): string {
   const id = dependencies.createId()
-  if (id.length === 0 || allocatedIds(state).includes(id)) {
+  if (id.length === 0 || allocatedIds(state).includes(id) || reservedIds.includes(id)) {
     throw new DemoDomainError("duplicate_id")
   }
   return id
@@ -134,10 +139,11 @@ export function createLedgerEvent(
   state: DemoState,
   input: Omit<LedgerEvent, "id" | "occurredAt">,
   dependencies: DemoDependencies,
+  reservedIds: readonly string[] = [],
 ): LedgerEvent {
   return {
     ...input,
-    id: allocateId(state, dependencies),
+    id: allocateId(state, dependencies, reservedIds),
     occurredAt: dependencies.now().toISOString(),
   }
 }
@@ -162,7 +168,7 @@ function claimAttendance(
   const credit = createLedgerEvent(
     state,
     {
-      amount: action.amount,
+      amount: ATTENDANCE_CREDIT_POINTS,
       direction: "credit",
       sourceId: action.localDate,
       sourceType: "attendance",

@@ -28,16 +28,36 @@ export type PersistentDemoState = Readonly<{
   dispatch: (action: DemoAction) => void
   hydrated: boolean
   logout: () => void
+  now: Date | null
   persistenceStatus: PersistenceStatus
   reset: () => void
   snapshot: DemoPersistenceSnapshot | null
   state: DemoState | null
 }>
 
-function browserDependencies(): DemoDependencies {
+function browserNow(): Date {
+  const value = new URLSearchParams(window.location.search).get("demoNow")
+  if (value === null) return new Date()
+  const parsed = new Date(value)
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed
+}
+
+function browserDependencies(baseNow: Date): DemoDependencies {
+  const idPrefix = new URLSearchParams(window.location.search).get("demoIdPrefix")
+  let idIndex = 0
+  let timeIndex = 0
   return {
-    createId: () => `device-${window.crypto.randomUUID()}`,
-    now: () => new Date(),
+    createId: () => {
+      idIndex += 1
+      return idPrefix === null
+        ? `device-${window.crypto.randomUUID()}`
+        : `device-${idPrefix.replace(/[^a-zA-Z0-9-]/g, "").slice(0, 40) || "test"}-${idIndex}`
+    },
+    now: () => {
+      const timestamp = new Date(baseNow.getTime() + timeIndex)
+      timeIndex += 1
+      return timestamp
+    },
   }
 }
 
@@ -51,6 +71,7 @@ export function usePersistentDemoState(): PersistentDemoState {
   const dependenciesRef = useRef<DemoDependencies | null>(null)
   const snapshotRef = useRef<DemoPersistenceSnapshot | null>(null)
   const [hydrated, setHydrated] = useState(false)
+  const [now, setNow] = useState<Date | null>(null)
   const [persistenceStatus, setPersistenceStatus] = useState<PersistenceStatus>("ready")
   const [snapshot, setSnapshot] = useState<DemoPersistenceSnapshot | null>(null)
 
@@ -62,12 +83,14 @@ export function usePersistentDemoState(): PersistentDemoState {
   }, [])
 
   useEffect(() => {
-    const dependencies = browserDependencies()
+    const currentNow = browserNow()
+    const dependencies = browserDependencies(currentNow)
     dependenciesRef.current = dependencies
     const result = hydrateDemoState(window.localStorage, () => createBlankSnapshot(dependencies))
     snapshotRef.current = result.snapshot
     setSnapshot(result.snapshot)
     setPersistenceStatus(result.kind === "storage_error" ? "storage_error" : "ready")
+    setNow(currentNow)
     setHydrated(true)
   }, [])
 
@@ -125,6 +148,7 @@ export function usePersistentDemoState(): PersistentDemoState {
     dispatch,
     hydrated,
     logout,
+    now,
     persistenceStatus,
     reset,
     snapshot,

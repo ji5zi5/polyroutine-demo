@@ -37,4 +37,4 @@ export type {
   MarketPosition,
   PredictionPosition,
 } from "./schema"
-export { demoActionSchema, demoStateSchema } from "./schema"
+export { ATTENDANCE_CREDIT_POINTS, demoActionSchema, demoStateSchema } from "./schema"

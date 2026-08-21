@@ -1,3 +1,4 @@
+import { couponInstanceSchema, couponUseIdSchema } from "../demo-coupons/coupon-types"
 import type { DemoDependencies } from "./domain"
 import {
   allocateId,
@@ -69,21 +70,22 @@ function purchaseCoupon(
       sourceType: "coupon_purchase",
     },
     dependencies,
+    [couponId],
   )
   const debited = appendLedgerEvent(state, debit)
+  const coupon = couponInstanceSchema.parse({
+    catalogId: action.catalogId,
+    cost: action.cost,
+    id: couponId,
+    label: action.label,
+    purchaseEventId: debit.id,
+    purchasedAt: debit.occurredAt,
+    useId: null,
+    usedAt: null,
+  })
   return {
     ...debited,
-    coupons: [
-      ...debited.coupons,
-      {
-        catalogId: action.catalogId,
-        cost: action.cost,
-        id: couponId,
-        label: action.label,
-        purchaseEventId: debit.id,
-        status: "available",
-      },
-    ],
+    coupons: [...debited.coupons, coupon],
   }
 }
 
@@ -94,15 +96,14 @@ function redeemCoupon(
 ): DemoState {
   const coupon = state.coupons.find((candidate) => candidate.id === action.couponId)
   if (coupon === undefined) throw new DemoDomainError("coupon_not_found")
-  if (coupon.status === "used") return state
-  const useId = allocateId(state, dependencies)
+  if (coupon.usedAt !== null) return state
+  const useId = couponUseIdSchema.parse(allocateId(state, dependencies))
   return {
     ...state,
     coupons: state.coupons.map((candidate) =>
       candidate.id === coupon.id
         ? {
             ...coupon,
-            status: "used",
             useId,
             usedAt: dependencies.now().toISOString(),
           }

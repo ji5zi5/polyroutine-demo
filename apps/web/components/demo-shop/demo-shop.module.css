@@ -1,0 +1,244 @@
+.shop,
+.history {
+  display: grid;
+  gap: var(--space-6);
+  color: var(--text-primary);
+}
+
+.shopHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.shopHeader h2,
+.shopHeader p,
+.product h3,
+.dialogCopy h2,
+.dialogCopy p,
+.history h2,
+.empty {
+  margin: 0;
+}
+
+.shopHeader h2,
+.history h2,
+.dialogCopy h2 {
+  font-size: var(--text-heading-3);
+  line-height: var(--leading-heading);
+  letter-spacing: var(--tracking-heading);
+}
+
+.shopHeader p,
+.productCopy span,
+.dialogCopy p,
+.empty,
+.historyList small {
+  color: var(--text-secondary);
+  font-size: var(--text-caption);
+  line-height: var(--leading-caption);
+}
+
+.shopHeader strong {
+  flex: none;
+  color: var(--tds-fg-brand);
+  font-variant-numeric: tabular-nums;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.product {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-3);
+  background: var(--surface-primary);
+  border: var(--border-width) solid var(--border-default);
+  border-radius: var(--radius-xl);
+}
+
+.image {
+  display: grid;
+  overflow: hidden;
+  aspect-ratio: 1;
+  place-items: center;
+  background: var(--surface-secondary);
+  border-radius: var(--radius-m);
+}
+
+.image img {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: contain;
+}
+
+.productCopy {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.product h3 {
+  min-block-size: calc(var(--space-5) * 2);
+  overflow: hidden;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.primaryButton,
+.secondaryButton {
+  min-block-size: var(--target-min);
+  padding-inline: var(--space-4);
+  font: inherit;
+  font-weight: var(--weight-strong);
+  border: 0;
+  border-radius: var(--radius-l);
+  cursor: pointer;
+}
+
+.primaryButton {
+  color: var(--text-on-accent);
+  background: var(--accent-primary);
+}
+
+.primaryButton:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.primaryButton:disabled {
+  cursor: not-allowed;
+  opacity: var(--tds-disabled-opacity);
+}
+
+.secondaryButton {
+  color: var(--text-primary);
+  background: var(--surface-secondary);
+}
+
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.historyList button:focus-visible,
+.history summary:focus-visible {
+  outline: var(--focus-width) solid var(--focus);
+  outline-offset: var(--space-1);
+}
+
+.dialog {
+  inline-size: min(calc(100% - var(--space-12)), var(--measure-card));
+  padding: var(--space-6);
+  color: var(--text-primary);
+  background: var(--surface-elevated);
+  border: 0;
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-3);
+}
+
+.dialog::backdrop {
+  background: var(--tds-bg-overlay);
+}
+
+.dialog > .image {
+  inline-size: var(--space-20);
+  margin-inline: auto;
+}
+
+.dialogCopy {
+  display: grid;
+  gap: var(--space-2);
+  margin-block: var(--space-5);
+  text-align: center;
+}
+
+.shortage {
+  color: var(--status-error);
+  font-variant-numeric: tabular-nums;
+}
+
+.status {
+  justify-self: center;
+  padding: var(--space-1) var(--space-2);
+  color: var(--tds-fg-brand);
+  font-size: var(--text-caption);
+  font-weight: var(--weight-strong);
+  background: var(--accent-soft);
+  border-radius: var(--radius-pill);
+}
+
+.truthNote {
+  padding: var(--space-3);
+  background: var(--surface-secondary);
+  border-radius: var(--radius-m);
+}
+
+.dialogActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.history details {
+  border-block-start: var(--border-width) solid var(--border-default);
+}
+
+.history summary {
+  display: flex;
+  align-items: center;
+  min-block-size: var(--target-min);
+  font-weight: var(--weight-strong);
+  cursor: pointer;
+}
+
+.historyList {
+  display: grid;
+  gap: 0;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.historyList button {
+  display: grid;
+  grid-template-columns: var(--space-16) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  inline-size: 100%;
+  min-block-size: var(--space-20);
+  padding: var(--space-2) 0;
+  color: inherit;
+  text-align: start;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.historyList .image {
+  inline-size: var(--space-16);
+}
+
+.historyList button > span:last-child {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.historyList strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.empty {
+  padding: var(--space-4);
+  background: var(--surface-secondary);
+  border-radius: var(--radius-xl);
+}

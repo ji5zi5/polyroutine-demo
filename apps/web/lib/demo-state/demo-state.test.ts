@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest"
+import { couponInstanceSchema } from "../demo-coupons/coupon-types"
 import {
   createInitialDemoState,
   type DemoDependencies,
@@ -124,7 +125,7 @@ describe("version 1 demo state", () => {
 
     // Then: its achieved single-use state and original purchase debit remain stable
     expect(replayed).toBe(used)
-    expect(replayed.coupons[0]?.status).toBe("used")
+    expect(replayed.coupons[0]?.usedAt).toBe("2026-08-21T09:00:00.000Z")
     expect(replayed.ledger).toHaveLength(1)
     expect(selectBalance(replayed)).toBe(50_200)
   })
@@ -234,5 +235,49 @@ describe("demo domain adversarial inputs", () => {
     // Then: independent ledger reconciliation reports the mismatch
     expect(result.valid).toBe(false)
     expect(result.violations).toContain("balance_mismatch")
+  })
+
+  it("rejects a purchase atomically when coupon and debit allocators return the same ID", () => {
+    // Given: a valid state and an allocator that repeats one ID across entity categories
+    const initial = createInitialDemoState(fixedDependencies())
+    const duplicateDependencies = fixedDependencies("same-purchase-id", "same-purchase-id")
+
+    // When: a coupon purchase tries to allocate its instance and debit
+    const purchase = () =>
+      reduceDemoState(
+        initial,
+        { catalogId: "coffee", cost: 1_000, label: "Coffee", type: "purchase_coupon" },
+        duplicateDependencies,
+      )
+
+    // Then: the transaction fails closed without changing the caller-owned state
+    expect(purchase).toThrowError(DemoDomainError)
+    expect(initial.balance).toBe(51_200)
+    expect(initial.coupons).toEqual([])
+    expect(initial.ledger).toEqual([])
+  })
+
+  it("detects an identity reused across coupon and ledger categories", () => {
+    // Given: a structurally valid purchase whose coupon identity is tampered to equal its debit ID
+    const dependencies = fixedDependencies("coupon-1", "debit-1")
+    const purchased = reduceDemoState(
+      createInitialDemoState(dependencies),
+      { catalogId: "coffee", cost: 1_000, label: "Coffee", type: "purchase_coupon" },
+      dependencies,
+    )
+    const coupon = purchased.coupons[0]
+    const debit = purchased.ledger[0]
+    if (coupon === undefined || debit === undefined) throw new TypeError("purchase fixture missing")
+    const collided: DemoState = {
+      ...purchased,
+      coupons: [couponInstanceSchema.parse({ ...coupon, id: debit.id })],
+    }
+
+    // When: full domain invariants inspect the state
+    const result = validateDemoInvariants(collided)
+
+    // Then: a cross-category collision is explicit even though each category is unique alone
+    expect(result.valid).toBe(false)
+    expect(result.violations).toContain("duplicate_allocated_id")
   })
 })
