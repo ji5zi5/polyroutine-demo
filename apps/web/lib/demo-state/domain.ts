@@ -17,6 +17,7 @@ type DemoDomainErrorCode =
   | "goal_not_found"
   | "insufficient_balance"
   | "invalid_state"
+  | "listing_not_found"
   | "round_not_open"
   | "unknown_action"
 
@@ -67,6 +68,7 @@ function allocatedIds(state: DemoState): readonly string[] {
     state.profile.id,
     state.round.id,
     ...state.goals.map((goal) => goal.id),
+    ...state.listedGoals.map((listing) => listing.id),
     ...state.positions.map((position) => position.id),
     ...state.marketHistory.map((position) => position.id),
     ...state.settledRoundIds,
@@ -114,6 +116,7 @@ export function createInitialDemoState(dependencies: DemoDependencies): DemoStat
     ],
     initialBalance: 51_200,
     ledger: [],
+    listedGoals: [],
     marketHistory: [],
     positions: [],
     profile: { id: "local-profile", nickname: "폴리 유저", scope: "device-local" },

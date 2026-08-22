@@ -34,6 +34,7 @@ export type {
   DemoRound,
   DemoState,
   LedgerEvent,
+  ListedGoal,
   MarketPosition,
   PredictionPosition,
 } from "./schema"

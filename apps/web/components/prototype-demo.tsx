@@ -2,8 +2,6 @@
 
 import { useState } from "react"
 import type { GoalAnalysisState } from "../lib/demo-goal-analysis/client/use-goal-analysis"
-import { GoalAnalysisRequestSchema } from "../lib/demo-goal-analysis/contract"
-import { analyzeGoalsFallback } from "../lib/demo-goal-analysis/fallback"
 import type { ValidAuthInput } from "../lib/demo-my/auth-input"
 import { selectMySummary } from "../lib/demo-my/my-view-model"
 import {
@@ -23,12 +21,6 @@ import { PredictionCard } from "./prediction-card"
 
 type DemoStep = "goal" | "listed" | "points" | "predict" | "profile" | "settle" | "verify"
 type DemoTab = "goal" | "points" | "predict" | "profile"
-type ListedGoalBatch = Readonly<{
-  deadline: string
-  id: string
-  probability: number
-  titles: readonly string[]
-}>
 
 const demoNavItems = [
   { icon: "M5 12h14M12 5l7 7-7 7", label: "예측", tab: "predict" },
@@ -62,7 +54,7 @@ const deadlineFormatter = new Intl.DateTimeFormat("ko-KR", {
 })
 
 function completionReward(probability: number): number {
-  return Math.ceil(10_000 / probability)
+  return Math.ceil(10_000 / Math.max(1, probability))
 }
 
 function DemoTopBar({ label }: { readonly label: string }) {
@@ -140,7 +132,6 @@ export function PrototypeDemo() {
   const [goalText, setGoalText] = useState("")
   const [goalAnalysisState, setGoalAnalysisState] = useState<GoalAnalysisState>({ kind: "idle" })
   const [deadline, setDeadline] = useState(defaultDeadline)
-  const [listedGoals, setListedGoals] = useState<readonly ListedGoalBatch[]>([])
   const [activeListingId, setActiveListingId] = useState<string | null>(null)
   const [marketMessage, setMarketMessage] = useState("")
 
@@ -152,6 +143,7 @@ export function PrototypeDemo() {
   const nickname = demoState?.profile.nickname ?? "폴리 유저"
   const points = demoState?.balance ?? 0
   const pendingPositions = demoState === null ? [] : selectPendingMarketPositions(demoState)
+  const listedGoals = demoState?.listedGoals ?? []
   const activeListing = listedGoals.find((listing) => listing.id === activeListingId)
   const activeProbability = activeListing?.probability ?? 50
   const earnedPoints = completionReward(activeProbability)
@@ -166,7 +158,9 @@ export function PrototypeDemo() {
   }
 
   const resetRoutineView = (): void => {
+    setActiveListingId(null)
     setCardIndex(0)
+    setDeadline(defaultDeadline())
     setGoalText("")
     setGoalAnalysisState({ kind: "idle" })
     setMarketMessage("")
@@ -175,6 +169,7 @@ export function PrototypeDemo() {
 
   const startAnotherListing = (): void => {
     demo.dispatch({ titles: [], type: "replace_goals" })
+    setActiveListingId(null)
     setGoalText("")
     setGoalAnalysisState({ kind: "idle" })
     setDeadline(defaultDeadline())
@@ -191,7 +186,7 @@ export function PrototypeDemo() {
       setStep(tab)
       return
     }
-    setStep(listedGoals.length > 0 || goalItems.length > 0 ? "listed" : "goal")
+    setStep(listedGoals.length > 0 ? "listed" : "goal")
   }
 
   const pendingGoal = goalText.trim()
@@ -379,17 +374,12 @@ export function PrototypeDemo() {
                 className="buttonFull demoPrimaryButton"
                 disabled={deadline === ""}
                 onClick={() => {
-                  const id = `listing-${listedGoals.length + 1}`
-                  setListedGoals((current) => [
-                    ...current,
-                    {
-                      deadline,
-                      id,
-                      probability: analysisResult.probability,
-                      titles: [...goalItems],
-                    },
-                  ])
-                  setActiveListingId(id)
+                  demo.dispatch({
+                    deadline,
+                    probability: analysisResult.probability,
+                    titles: goalItems,
+                    type: "list_goals",
+                  })
                   setStep("listed")
                 }}
                 type="button"
@@ -405,19 +395,6 @@ export function PrototypeDemo() {
   }
 
   if (step === "listed") {
-    const listedAnalysis =
-      analysisResult ?? analyzeGoalsFallback(GoalAnalysisRequestSchema.parse({ goals: goalItems }))
-    const visibleListings =
-      listedGoals.length > 0
-        ? listedGoals
-        : [
-            {
-              deadline,
-              id: "current-listing",
-              probability: listedAnalysis.probability,
-              titles: goalItems,
-            },
-          ]
     return (
       <main className="demoViewport" key="listed">
         <DemoTopBar label="내 목표" />
@@ -426,7 +403,7 @@ export function PrototypeDemo() {
             <h1>상장한 목표</h1>
           </div>
           <div className="listedGoalStack">
-            {visibleListings.map((listing) => (
+            {listedGoals.map((listing) => (
               <article className="listedGoalCard" key={listing.id}>
                 <span className="statusLabel statusReady">상장 완료</span>
                 <ul aria-label="상장한 목표" className="listedGoalList">
@@ -444,17 +421,29 @@ export function PrototypeDemo() {
                     <dt>AI 성공 확률</dt>
                     <dd>{listing.probability}%</dd>
                   </div>
-                  <div>
+                  <div className="listedDeadlineRow">
                     <dt>인증 마감</dt>
-                    <dd>{deadlineFormatter.format(new Date(listing.deadline))}</dd>
+                    <dd>
+                      <span>{deadlineFormatter.format(new Date(listing.deadline))}</span>
+                      <input
+                        aria-label={`${listing.titles.join(" · ")} 인증 마감 수정`}
+                        min={toLocalDateTimeInput(new Date())}
+                        onChange={(event) =>
+                          demo.dispatch({
+                            deadline: event.target.value,
+                            listingId: listing.id,
+                            type: "update_listed_goal_deadline",
+                          })
+                        }
+                        type="datetime-local"
+                        value={listing.deadline}
+                      />
+                    </dd>
                   </div>
                 </dl>
                 <button
                   className="buttonFull demoPrimaryButton"
                   onClick={() => {
-                    if (!listedGoals.some((candidate) => candidate.id === listing.id)) {
-                      setListedGoals([listing])
-                    }
                     demo.dispatch({ titles: listing.titles, type: "replace_goals" })
                     setActiveListingId(listing.id)
                     setStep("verify")

@@ -166,6 +166,40 @@ function replaceGoals(
   return { ...state, goals }
 }
 
+function listGoals(
+  state: DemoState,
+  action: Extract<DemoAction, { readonly type: "list_goals" }>,
+  dependencies: DemoDependencies,
+): DemoState {
+  return {
+    ...state,
+    listedGoals: [
+      ...state.listedGoals,
+      {
+        deadline: action.deadline,
+        id: allocateId(state, dependencies),
+        probability: action.probability,
+        titles: action.titles,
+      },
+    ],
+  }
+}
+
+function updateListedGoalDeadline(
+  state: DemoState,
+  action: Extract<DemoAction, { readonly type: "update_listed_goal_deadline" }>,
+): DemoState {
+  if (!state.listedGoals.some((listing) => listing.id === action.listingId)) {
+    throw new DemoDomainError("listing_not_found")
+  }
+  return {
+    ...state,
+    listedGoals: state.listedGoals.map((listing) =>
+      listing.id === action.listingId ? { ...listing, deadline: action.deadline } : listing,
+    ),
+  }
+}
+
 function assertNever(_action: never): never {
   throw new DemoDomainError("unknown_action")
 }
@@ -191,6 +225,9 @@ export function reduceDemoState(
     case "place_market_position":
       next = placeMarketPosition(state, action, dependencies).state
       break
+    case "list_goals":
+      next = listGoals(state, action, dependencies)
+      break
     case "purchase_coupon":
       next = purchaseCoupon(state, action, dependencies)
       break
@@ -211,6 +248,9 @@ export function reduceDemoState(
       break
     case "update_profile":
       next = { ...state, profile: { ...state.profile, nickname: action.nickname } }
+      break
+    case "update_listed_goal_deadline":
+      next = updateListedGoalDeadline(state, action)
       break
     default:
       return assertNever(action)

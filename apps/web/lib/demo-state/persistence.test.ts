@@ -160,6 +160,39 @@ describe("device-local demo persistence", () => {
     expect(serialized).not.toContain("apiKey")
   })
 
+  it("round-trips multiple listed goals with their exact deadlines and analyzed probabilities", () => {
+    // Given: two completed listings with distinct user text, deadlines, and AI probabilities
+    const storage = new MemoryStorage()
+    const snapshot = realisticSnapshot()
+    const listings = [
+      {
+        deadline: "2026-08-25T21:30",
+        id: "listing-study",
+        probability: 73,
+        titles: ["정보처리기사 3장 요약"],
+      },
+      {
+        deadline: "2026-08-27T07:15",
+        id: "listing-run",
+        probability: 41,
+        titles: ["아침 30분 달리기"],
+      },
+    ]
+
+    // When: the enriched device snapshot is saved and hydrated
+    const saved = saveDemoState(storage, {
+      ...snapshot,
+      state: { ...snapshot.state, listedGoals: listings },
+    })
+    const hydrated = hydrateDemoState(storage, initialSnapshot)
+
+    // Then: listing identity and payout inputs survive the storage boundary exactly
+    expect(saved.kind).toBe("saved")
+    expect(hydrated).toMatchObject({ snapshot: { state: { listedGoals: listings } } })
+    expect(storage.values.get(DEMO_STATE_STORAGE_KEY)).toContain('"listing-study"')
+    expect(storage.values.get(DEMO_STATE_STORAGE_KEY)).toContain('"probability":41')
+  })
+
   it("preserves profile and activity when logout only conceals authentication", () => {
     // Given: a persisted authenticated device profile
     const storage = new MemoryStorage()
@@ -308,5 +341,25 @@ describe("device-local demo persistence", () => {
       usedAt: null,
     })
     expect(hydrated.snapshot.state.ledger).toEqual(current.state.ledger)
+  })
+
+  it("defaults an older v1 snapshot without listings while preserving financial activity", () => {
+    // Given: a valid v1 snapshot created before listedGoals existed
+    const storage = new MemoryStorage()
+    const current = realisticSnapshot()
+    const { listedGoals: _listedGoals, ...legacyState } = current.state
+    storage.values.set(DEMO_STATE_STORAGE_KEY, JSON.stringify({ ...current, state: legacyState }))
+
+    // When: the current persistence boundary hydrates that snapshot
+    const hydrated = hydrateDemoState(storage, initialSnapshot)
+
+    // Then: listings default safely without losing ledger, round, positions, or coupons
+    expect(hydrated.kind).toBe("hydrated")
+    if (hydrated.kind !== "hydrated") return
+    expect(hydrated.snapshot.state.listedGoals).toEqual([])
+    expect(hydrated.snapshot.state.ledger).toEqual(current.state.ledger)
+    expect(hydrated.snapshot.state.round).toEqual(current.state.round)
+    expect(hydrated.snapshot.state.positions).toEqual(current.state.positions)
+    expect(hydrated.snapshot.state.coupons).toEqual(current.state.coupons)
   })
 })
