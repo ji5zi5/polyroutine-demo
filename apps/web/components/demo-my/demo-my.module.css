@@ -105,6 +105,7 @@
 .primaryAction {
   color: var(--text-on-accent);
   background: var(--accent-primary);
+  font-size: var(--text-primary-action);
 }
 
 .primaryAction:hover:not(:disabled) {

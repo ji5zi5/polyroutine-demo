@@ -41,6 +41,7 @@ export function PurchaseCouponDialog({
     {
       "aria-labelledby": "purchase-coupon-title",
       className: styleClass("dialog"),
+      "data-demo-dialog": "coupon",
       onCancel: (event: SyntheticEvent<HTMLDialogElement>) => {
         event.preventDefault()
         onClose()
@@ -110,6 +111,7 @@ export function CouponDetailDialog({
     {
       "aria-labelledby": "coupon-detail-title",
       className: styleClass("dialog"),
+      "data-demo-dialog": "coupon",
       onCancel: (event: SyntheticEvent<HTMLDialogElement>) => {
         event.preventDefault()
         onClose()

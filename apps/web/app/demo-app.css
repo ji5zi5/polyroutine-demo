@@ -24,7 +24,7 @@ body:has(.demoViewport) {
 }
 
 .demoBrand {
-  color: var(--accent-primary);
+  color: var(--text-primary);
   font-size: var(--text-body-large);
   font-weight: var(--weight-strong);
 }
@@ -181,6 +181,7 @@ body:has(.demoViewport) {
   color: var(--text-tertiary);
   font-size: var(--text-caption);
   min-block-size: var(--target-min);
+  min-inline-size: var(--target-min);
   padding-inline: var(--space-2);
 }
 
@@ -841,6 +842,10 @@ body:has(.demoViewport) {
 }
 
 .demoNav button[aria-current="page"] {
+  color: var(--text-primary);
+}
+
+.demoNav button[aria-current="page"] svg {
   color: var(--accent-primary);
 }
 
@@ -871,6 +876,18 @@ body:has(.demoViewport) {
     border-radius: var(--radius-4xl);
     box-shadow: var(--shadow-3);
     min-block-size: 40rem;
+  }
+}
+
+@media (max-width: 40rem) {
+  dialog[data-demo-dialog="coupon"] {
+    box-sizing: border-box;
+    inline-size: 100%;
+    max-inline-size: 100%;
+    margin: auto 0 0;
+    padding-block-end: max(var(--space-6), env(safe-area-inset-bottom));
+    border-radius: var(--radius-3xl) var(--radius-3xl) 0 0;
+    box-shadow: var(--shadow-bottom-sheet);
   }
 }
 

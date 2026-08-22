@@ -42,7 +42,7 @@
 
 .shopHeader strong {
   flex: none;
-  color: var(--tds-fg-brand);
+  color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
 
@@ -109,6 +109,7 @@
 .primaryButton {
   color: var(--text-on-accent);
   background: var(--accent-primary);
+  font-size: var(--text-primary-action);
 }
 
 .primaryButton:hover:not(:disabled) {
@@ -135,6 +136,8 @@
 
 .dialog {
   inline-size: min(calc(100% - var(--space-12)), var(--measure-card));
+  max-block-size: calc(100dvh - var(--space-8));
+  overflow-y: auto;
   padding: var(--space-6);
   color: var(--text-primary);
   background: var(--surface-elevated);
@@ -167,10 +170,11 @@
 .status {
   justify-self: center;
   padding: var(--space-1) var(--space-2);
-  color: var(--tds-fg-brand);
+  color: var(--text-primary);
   font-size: var(--text-caption);
   font-weight: var(--weight-strong);
   background: var(--accent-soft);
+  border: var(--border-width) solid var(--accent-primary);
   border-radius: var(--radius-pill);
 }
 

@@ -115,7 +115,7 @@
 }
 
 .history[open] .disclosure {
-  color: var(--tds-fg-brand);
+  color: var(--text-primary);
 }
 
 .historyContent {
@@ -150,7 +150,7 @@
 }
 
 .transactionAmount strong[data-direction="credit"] {
-  color: var(--tds-fg-brand);
+  color: var(--text-primary);
 }
 
 .empty {

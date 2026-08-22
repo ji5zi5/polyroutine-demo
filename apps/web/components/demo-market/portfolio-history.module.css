@@ -1,10 +1,10 @@
 .surface {
   display: grid;
-  padding: 24px;
+  padding: var(--space-6);
   color: var(--text-primary);
   background: var(--surface-primary);
-  border: 1px solid var(--border-default);
-  border-radius: 24px;
+  border: var(--border-width) solid var(--border-default);
+  border-radius: var(--radius-3xl);
 }
 
 .header,
@@ -12,7 +12,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .section h3,
@@ -21,30 +21,30 @@
 }
 
 .header {
-  min-block-size: 44px;
+  min-block-size: var(--target-min);
   cursor: pointer;
 }
 
 .header:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 4px;
-  border-radius: 12px;
+  outline: var(--focus-width) solid var(--focus);
+  outline-offset: var(--space-1);
+  border-radius: var(--radius-m);
 }
 
 .title {
   display: grid;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .title strong {
-  font-size: 20px;
+  font-size: var(--text-heading-3);
   line-height: 1.4;
 }
 
 .content {
   display: grid;
-  gap: 24px;
-  padding-block-start: 24px;
+  gap: var(--space-6);
+  padding-block-start: var(--space-6);
 }
 
 .eyebrow,
@@ -54,30 +54,30 @@
 .empty,
 .numbers dt {
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: var(--text-caption);
   line-height: 1.5;
 }
 
 .eyebrow {
-  color: var(--tds-fg-brand);
+  color: var(--text-primary);
   font-weight: 700;
 }
 
 .count {
   flex: none;
-  padding: 6px 10px;
+  padding: var(--space-1) var(--space-3);
   background: var(--surface-secondary);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-variant-numeric: tabular-nums;
 }
 
 .section {
   display: grid;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .section h3 {
-  font-size: 15px;
+  font-size: var(--text-body);
   line-height: 1.5;
 }
 
@@ -95,29 +95,29 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  min-block-size: 64px;
-  padding-block: 12px;
-  border-block-start: 1px solid var(--border-default);
+  gap: var(--space-4);
+  min-block-size: var(--space-16);
+  padding-block: var(--space-3);
+  border-block-start: var(--border-width) solid var(--border-default);
 }
 
 .identity {
   display: grid;
   min-width: 0;
-  gap: 4px;
+  gap: var(--space-1);
 }
 
 .identity strong {
-  overflow: hidden;
-  font-size: 15px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: var(--text-body);
+  overflow-wrap: anywhere;
+  white-space: normal;
+  word-break: keep-all;
 }
 
 .numbers {
   display: flex;
   flex: none;
-  gap: 16px;
+  gap: var(--space-4);
   margin: 0;
   font-variant-numeric: tabular-nums;
   text-align: end;
@@ -125,40 +125,40 @@
 
 .numbers div {
   display: grid;
-  gap: 2px;
+  gap: var(--space-1);
 }
 
 .numbers dd {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--text-caption);
   font-weight: 700;
 }
 
 .rounds {
-  gap: 12px;
+  gap: var(--space-3);
 }
 
 .round {
-  padding: 16px;
+  padding: var(--space-4);
   background: var(--surface-secondary);
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
 }
 
 .roundHeader {
-  padding-block-end: 8px;
+  padding-block-end: var(--space-2);
   font-variant-numeric: tabular-nums;
 }
 
 .empty {
-  padding: 16px;
+  padding: var(--space-4);
   margin: 0;
   background: var(--surface-secondary);
-  border-radius: 16px;
+  border-radius: var(--radius-xl);
 }
 
-@media (max-width: 640px) {
+@media (max-width: 40rem) {
   .surface {
-    padding: 24px;
+    padding: var(--space-6);
   }
 
   .row,
