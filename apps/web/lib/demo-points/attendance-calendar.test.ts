@@ -4,7 +4,7 @@ import {
   type DemoDependencies,
   reduceDemoState,
 } from "../demo-state/index.js"
-import { SEEDED_ATTENDANCE_EXAMPLE_DATES, selectAttendanceCalendar } from "./attendance-calendar.js"
+import { selectAttendanceCalendar } from "./attendance-calendar.js"
 
 const dependencies: DemoDependencies = {
   createId: () => "attendance-calendar-event",
@@ -12,8 +12,8 @@ const dependencies: DemoDependencies = {
 }
 
 describe("attendance calendar view model", () => {
-  it("separates seeded examples from the actual browser-local claim", () => {
-    // Given: a fixed August claim and three illustrative fixture dates
+  it("projects only actual browser-local attendance claims", () => {
+    // Given: a fixed August claim
     const initial = createInitialDemoState(dependencies)
     const claimed = reduceDemoState(
       initial,
@@ -22,17 +22,13 @@ describe("attendance calendar view model", () => {
     )
 
     // When: the current browser-local month is projected
-    const calendar = selectAttendanceCalendar(
-      claimed,
-      new Date(2026, 7, 21, 12),
-      SEEDED_ATTENDANCE_EXAMPLE_DATES,
-    )
+    const calendar = selectAttendanceCalendar(claimed, new Date(2026, 7, 21, 12))
 
-    // Then: real history wins, while fixture dates remain explicitly examples
+    // Then: only actual history is projected
     expect(calendar.monthLabel).toBe("2026년 8월")
     expect(calendar.leadingBlankCount).toBe(6)
     expect(calendar.days).toHaveLength(31)
-    expect(calendar.days.find((day) => day.day === 17)?.status).toBe("example")
+    expect(calendar.days.find((day) => day.day === 17)?.status).toBe("none")
     expect(calendar.days.find((day) => day.day === 21)).toMatchObject({
       isToday: true,
       localDate: "2026-08-21",

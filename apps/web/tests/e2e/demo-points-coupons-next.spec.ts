@@ -66,9 +66,7 @@ test("attendance is local-day idempotent and every displayed point reconciles", 
   await attendanceTrigger.click()
   const dialog = page.getByRole("dialog", { name: "8월 출석체크" })
   await expect(dialog).toBeVisible()
-  await expect(
-    dialog.getByText("데모 예시이며 내 출석 기록이 아니에요", { exact: false }),
-  ).toBeVisible()
+  await expect(dialog.getByText("데모 예시", { exact: false })).toHaveCount(0)
   const claim = dialog.getByRole("button", { name: "오늘 출석하기 · +200P" })
   await claim.evaluate((button) => {
     button.click()
@@ -157,7 +155,9 @@ test("repeat purchases create usable coupon instances and shortage is exact", as
     snapshot.state.ledger.filter((event) => event.sourceType === "coupon_purchase"),
   ).toHaveLength(2)
 
-  await expect(page.getByText("사용 가능 2개", { exact: true })).toBeVisible()
+  await page.getByRole("button", { name: "MY", exact: true }).click()
+  await page.getByText("쿠폰 내역", { exact: true }).click()
+  await expect(page.getByRole("heading", { name: "사용 가능 2개" })).toBeVisible()
   const availableCoupons = page.locator("[data-coupon-id] button").filter({ hasText: "사용 가능" })
   await availableCoupons.first().click()
   await expect(page.getByRole("dialog", { name: "GS25 모바일 상품권 1천원권" })).toBeVisible()
@@ -176,12 +176,14 @@ test("repeat purchases create usable coupon instances and shortage is exact", as
   })
   const balanceAfterUse = (await stored(page)).state.balance
   expect(balanceAfterUse).toBe(20_000)
-  await expect(page.locator('details[data-coupon-group="used"] > summary')).toBeFocused()
+  await expect(page.getByRole("heading", { name: "사용한 쿠폰 1개" })).toBeVisible()
 
   await page.reload()
+  await page.getByRole("button", { name: "MY", exact: true }).click()
+  await page.getByText("쿠폰 내역", { exact: true }).click()
+  await expect(page.getByRole("heading", { name: "사용 가능 1개" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "사용한 쿠폰 1개" })).toBeVisible()
   await page.getByRole("button", { name: "포인트", exact: true }).click()
-  await expect(page.getByText("사용 가능 1개", { exact: true })).toBeVisible()
-  await expect(page.getByText("사용한 쿠폰 1개", { exact: true })).toBeVisible()
   const beforeInsufficient = await stored(page)
   const insufficientTrigger = page.getByRole("button", {
     name: "배스킨라빈스 교환권 30,000원 1,500,000P로 구매",

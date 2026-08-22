@@ -53,6 +53,9 @@ describe("PortfolioHistory", () => {
     expect(html).toContain('data-market-history-content="true"')
     expect(html).toContain("&lt;script&gt;alert(&#x27;x&#x27;)&lt;/script&gt;")
     expect(html).not.toContain("<script>alert")
+    expect(html).not.toContain("포트폴리오와 기록이에요")
+    expect(html).not.toContain("진행 중인 포지션이에요")
+    expect(html).not.toContain("지난 라운드 기록이에요")
   })
 
   it("renders the disclosure content revealed when explicitly requested", () => {
@@ -74,5 +77,26 @@ describe("PortfolioHistory", () => {
     expect(html).toMatch(/^<details[^>]*\bopen=""/)
     expect(html).toContain('data-position-id="position-1"')
     expect(html).toContain('data-round-id="round-1"')
+    expect(html).toContain('aria-label="100P 베팅, 예상 지급 157P"')
+    expect(html).not.toContain("정산된 라운드가 아직 없어요")
+  })
+
+  it("omits an empty settled section and redundant metric labels", () => {
+    // Given: one active prediction and no archived rounds
+    // When: the compact history is rendered open
+    const html = renderToStaticMarkup(
+      createElement(PortfolioHistory, {
+        defaultExpanded: true,
+        pendingPositions: [pending],
+        rounds: [],
+      }),
+    )
+
+    // Then: only useful prediction data remains in the disclosure
+    expect(html).toContain("내 예측")
+    expect(html).toContain("가능 · 참여자 64%")
+    expect(html).not.toContain("지난 라운드")
+    expect(html).not.toContain("베팅</dt>")
+    expect(html).not.toContain("예상 지급</dt>")
   })
 })

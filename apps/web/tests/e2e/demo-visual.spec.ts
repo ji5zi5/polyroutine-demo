@@ -141,8 +141,8 @@ test("captures every settled mobile prototype state", async ({ page }) => {
   }
   await capture(page, "goal-list-375")
   await page.getByRole("button", { name: "성공 확률 분석하기" }).click()
-  await expect(page.getByRole("button", { name: "이 목표 상장하기" })).toBeVisible()
-  await page.getByRole("button", { name: "이 목표 상장하기" }).click()
+  await expect(page.getByRole("button", { name: "목표 3개 상장하기" })).toBeVisible()
+  await page.getByRole("button", { name: "목표 3개 상장하기" }).click()
   await capture(page, "listed-multi-375")
 
   await page.goto("/demo")
@@ -159,8 +159,7 @@ test("captures every settled mobile prototype state", async ({ page }) => {
   await loginDemo(page)
   await openVerification(page)
   await uploadProofPhoto(page)
-  await page.getByRole("button", { name: "사진 확인하기" }).click()
-  await expect(page.getByText("파일 형식과 미리보기를 확인했어요.")).toBeVisible()
+  await expect(page.getByText("인증이 완료됐어요.")).toBeVisible()
   await capture(page, "verified-375")
 
   await page.getByRole("button", { name: "정산 결과 보기" }).click()

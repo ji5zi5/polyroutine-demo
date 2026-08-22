@@ -40,7 +40,9 @@ test("goal bundles keep a full-width market bar without redundant decoration", a
   expect(widths.market).toBeGreaterThan(widths.card - 50)
 })
 
-test("committing a prediction briefly confirms the 100P bet", async ({ page }) => {
+test("committing a prediction uses card motion without duplicate text feedback", async ({
+  page,
+}) => {
   await page.setViewportSize({ height: 812, width: 375 })
   await page.goto("/demo")
   await loginDemo(page)
@@ -49,6 +51,8 @@ test("committing a prediction briefly confirms the 100P bet", async ({ page }) =
   await card.focus()
   await card.press("ArrowLeft")
 
-  await expect(page.getByText("-100P · 가능 베팅", { exact: true })).toBeVisible()
+  await expect(page.locator(".swipeGestureGuide")).toHaveCount(0)
+  await expect(page.getByText("-100P · 가능 베팅", { exact: true })).toHaveCount(0)
+  await expect(page.getByText("51,100P", { exact: true })).toBeVisible()
   await expect(card).toHaveAttribute("data-goal-id", "demo-2")
 })

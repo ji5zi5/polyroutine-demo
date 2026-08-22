@@ -1,10 +1,12 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { couponCatalog } from "../../lib/demo-coupons"
 import { nicknameDisplayLines, parseNicknameInput } from "../../lib/demo-my/auth-input"
 import type { MySummary } from "../../lib/demo-my/my-view-model"
 import { PortfolioHistory } from "../demo-market/portfolio-history"
 import { TransactionHistory } from "../demo-points/transaction-history"
+import { CouponDetailDialog } from "../demo-shop/demo-shop-surface"
 import styles from "./demo-my.module.css"
 import { MyCouponHistory } from "./my-coupon-history"
 
@@ -15,6 +17,7 @@ type MySurfaceProps = Readonly<{
   onLogout: () => void
   onReset: () => void
   onUpdateNickname: (nickname: string) => void
+  onUseCoupon: (couponId: string) => void
   summary: MySummary
 }>
 
@@ -30,6 +33,16 @@ export function MySurface(props: MySurfaceProps) {
   const [nicknameDraft, setNicknameDraft] = useState("")
   const [nicknameError, setNicknameError] = useState("")
   const [resetting, setResetting] = useState(false)
+  const [selectedCouponId, setSelectedCouponId] = useState<string | null>(null)
+  const [couponMode, setCouponMode] = useState<"confirm-use" | "detail">("detail")
+
+  const selectedCoupon = [...props.summary.availableCoupons, ...props.summary.usedCoupons].find(
+    (coupon) => coupon.id === selectedCouponId,
+  )
+  const selectedCouponProduct =
+    selectedCoupon === undefined
+      ? undefined
+      : couponCatalog.find((product) => product.id === selectedCoupon.catalogId)
 
   useEffect(() => {
     if (editing && editDialogRef.current !== null && !editDialogRef.current.open) {
@@ -115,6 +128,10 @@ export function MySurface(props: MySurfaceProps) {
         />
         <MyCouponHistory
           available={props.summary.availableCoupons}
+          onSelectCoupon={(coupon) => {
+            setCouponMode("detail")
+            setSelectedCouponId(coupon.id)
+          }}
           used={props.summary.usedCoupons}
         />
       </section>
@@ -128,7 +145,7 @@ export function MySurface(props: MySurfaceProps) {
           ref={resetTriggerRef}
           type="button"
         >
-          데모 초기화
+          데이터 초기화
         </button>
       </div>
       {editing ? (
@@ -191,7 +208,7 @@ export function MySurface(props: MySurfaceProps) {
           }}
           ref={resetDialogRef}
         >
-          <h2 id="reset-dialog-title">데모를 초기화할까요?</h2>
+          <h2 id="reset-dialog-title">모든 데이터를 초기화할까요?</h2>
           <p>프로필, 목표, 포인트와 예측 기록만 지워져요.</p>
           <div className={styles["dialogActions"]}>
             <button className={styles["quietAction"]} onClick={closeReset} type="button">
@@ -203,6 +220,19 @@ export function MySurface(props: MySurfaceProps) {
           </div>
         </dialog>
       ) : null}
+      {selectedCoupon === undefined || selectedCouponProduct === undefined ? null : (
+        <CouponDetailDialog
+          coupon={selectedCoupon}
+          mode={couponMode}
+          onClose={() => setSelectedCouponId(null)}
+          onConfirmUse={() => {
+            props.onUseCoupon(selectedCoupon.id)
+            setSelectedCouponId(null)
+          }}
+          onRequestUse={() => setCouponMode("confirm-use")}
+          product={selectedCouponProduct}
+        />
+      )}
     </>
   )
 }

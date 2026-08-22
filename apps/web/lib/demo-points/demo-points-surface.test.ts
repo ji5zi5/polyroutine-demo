@@ -39,7 +39,6 @@ function render(open: boolean, defaultHistoryExpanded = false): string {
     createElement(DemoPointsSurface, {
       attendanceDialogOpen: open,
       defaultHistoryExpanded,
-      exampleDates: ["2026-08-17", "2026-08-18", "2026-08-19"],
       now: new Date(2026, 7, 21, 12),
       onClaimAttendance: () => {},
       onCloseAttendance: () => {},
@@ -64,16 +63,17 @@ describe("demo points surface", () => {
     expect(html).toMatch(/<details(?![^>]* open)/)
   })
 
-  it("labels seeded calendar fixtures as examples and actual claims as device history", () => {
-    // Given: an opened attendance dialog with seeded illustrative dates and a real claim
+  it("renders only actual attendance history without seeded demo dates", () => {
+    // Given: an opened attendance dialog with one actual claim
     // When: the calendar is rendered for the injected browser-local month
     const html = render(true, true)
 
-    // Then: the modal and disclosure are accessible and examples cannot be mistaken for real history
+    // Then: the modal is accessible and contains no explanatory demo fixture
     expect(html).toMatch(/<dialog/)
     expect(html).toContain('aria-modal="true"')
-    expect(html).toContain("데모 예시이며 내 출석 기록이 아니에요")
-    expect(html).toContain('aria-label="8월 17일, 데모 예시 출석"')
+    expect(html).not.toContain("데모 예시")
+    expect(html).not.toContain("화면 설명용")
+    expect(html).not.toContain('data-attendance-status="example"')
     expect(html).toContain('aria-label="8월 21일, 내 출석 기록"')
     expect(html).toContain('aria-current="date"')
     expect(html).toMatch(/<details[^>]* open=""/)

@@ -130,13 +130,8 @@ export function DemoVerificationSurface({ goal, onSettled }: DemoVerificationSur
       goal={goal}
       inputId={inputId}
       onFileSelected={(file: StagedPhoto) => void controller.select(file)}
-      onReset={() => {
-        setSettlementRequested(false)
-        controller.reset()
-      }}
       onRetry={controller.retry}
       onSettle={controller.settle}
-      onStartChecking={controller.startChecking}
       retryButtonRef={retryButtonRef}
       settlementRequested={settlementRequested}
       state={state}

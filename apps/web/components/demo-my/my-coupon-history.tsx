@@ -3,24 +3,33 @@ import styles from "./demo-my.module.css"
 
 type MyCouponHistoryProps = Readonly<{
   available: readonly CouponInstance[]
+  onSelectCoupon: (coupon: CouponInstance) => void
   used: readonly CouponInstance[]
 }>
 
-function CouponRows({ coupons }: Readonly<{ coupons: readonly CouponInstance[] }>) {
-  if (coupons.length === 0) return <p className={styles["emptyHistory"]}>해당 쿠폰이 없어요.</p>
+function CouponRows({
+  coupons,
+  onSelectCoupon,
+}: Readonly<{
+  coupons: readonly CouponInstance[]
+  onSelectCoupon: (coupon: CouponInstance) => void
+}>) {
   return (
     <ul className={styles["historyList"]}>
       {coupons.map((coupon) => (
-        <li key={coupon.id}>
-          <strong>{coupon.label}</strong>
-          <span>{coupon.usedAt === null ? "사용 가능" : "사용 완료"}</span>
+        <li data-coupon-id={coupon.id} key={coupon.id}>
+          <button onClick={() => onSelectCoupon(coupon)} type="button">
+            <strong>{coupon.label}</strong>
+            <span>{coupon.usedAt === null ? "사용 가능" : "사용 완료"}</span>
+          </button>
         </li>
       ))}
     </ul>
   )
 }
 
-export function MyCouponHistory({ available, used }: MyCouponHistoryProps) {
+export function MyCouponHistory({ available, onSelectCoupon, used }: MyCouponHistoryProps) {
+  if (available.length + used.length === 0) return null
   return (
     <details className={styles["history"]}>
       <summary>
@@ -31,14 +40,18 @@ export function MyCouponHistory({ available, used }: MyCouponHistoryProps) {
         <span aria-hidden="true">보기</span>
       </summary>
       <div className={styles["couponGroups"]}>
-        <section aria-labelledby="my-available-coupons">
-          <h3 id="my-available-coupons">사용 가능 {available.length}개</h3>
-          <CouponRows coupons={available} />
-        </section>
-        <section aria-labelledby="my-used-coupons">
-          <h3 id="my-used-coupons">사용한 쿠폰 {used.length}개</h3>
-          <CouponRows coupons={used} />
-        </section>
+        {available.length === 0 ? null : (
+          <section aria-labelledby="my-available-coupons">
+            <h3 id="my-available-coupons">사용 가능 {available.length}개</h3>
+            <CouponRows coupons={available} onSelectCoupon={onSelectCoupon} />
+          </section>
+        )}
+        {used.length === 0 ? null : (
+          <section aria-labelledby="my-used-coupons">
+            <h3 id="my-used-coupons">사용한 쿠폰 {used.length}개</h3>
+            <CouponRows coupons={used} onSelectCoupon={onSelectCoupon} />
+          </section>
+        )}
       </div>
     </details>
   )

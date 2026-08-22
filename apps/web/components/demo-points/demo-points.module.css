@@ -18,9 +18,7 @@
 .historySummary small,
 .transaction time,
 .transactionAmount span,
-.dialogHeading span,
-.exampleNote,
-.empty {
+.dialogHeading span {
   color: var(--text-secondary);
   font-size: var(--text-caption);
   line-height: var(--leading-caption);
@@ -29,9 +27,7 @@
 .balance h2,
 .dialogHeading h2,
 .historySummary strong,
-.transaction strong,
-.exampleNote,
-.empty {
+.transaction strong {
   margin: 0;
 }
 
@@ -153,10 +149,6 @@
   color: var(--text-primary);
 }
 
-.empty {
-  padding-block: var(--space-4);
-}
-
 .dialog {
   inline-size: min(calc(100% - var(--space-8)), var(--measure-card));
   max-block-size: calc(100% - var(--space-8));
@@ -181,13 +173,6 @@
 .dialogHeading h2 {
   font-size: var(--text-heading-3);
   line-height: var(--leading-heading);
-}
-
-.exampleNote {
-  padding: var(--space-3);
-  margin-block: var(--space-4);
-  background: var(--surface-secondary);
-  border-radius: var(--radius-m);
 }
 
 .calendar {
@@ -226,11 +211,6 @@
   color: var(--tds-fg-brand);
   background: var(--accent-soft);
   font-weight: var(--weight-strong);
-}
-
-.calendar td[data-attendance-status="example"] {
-  color: var(--text-tertiary);
-  background: var(--surface-secondary);
 }
 
 .calendar td[aria-current="date"] {

@@ -19,16 +19,9 @@ export function GoalAnalysisResultView({ result }: GoalAnalysisResultViewProps) 
   return (
     <section aria-label="AI 예상 성공 확률" className={styles["result"]} data-source={model.source}>
       <div className={styles["resultHeading"]}>
-        <div>
-          <span className={styles["eyebrow"]}>AI 예상 성공 확률</span>
-          <strong className={styles["probability"]}>{model.probability}%</strong>
-        </div>
-        <div className={styles["metadata"]}>
-          <span>{model.label}</span>
-          <span>신뢰도 {model.confidence}</span>
-        </div>
+        <span className={styles["eyebrow"]}>AI 예상 성공 확률</span>
+        <strong className={styles["probability"]}>{model.probability}%</strong>
       </div>
-      <p className={styles["separation"]}>참여자 예측 비율과 별도로 제공하는 참고값이에요.</p>
       <details className={styles["factors"]}>
         <summary>분석 근거 {model.factors.length}개 보기</summary>
         <ul>
@@ -70,27 +63,13 @@ export function GoalAnalysisPanel({
 
   return (
     <section className={styles["panel"]}>
-      {isLoading ? (
-        <div aria-live="polite" className={styles["progress"]} role="status">
-          <strong>AI가 목표를 분석하고 있어요</strong>
-          <span>구체성 · 분량 · 실행 기준을 살펴봐요</span>
-        </div>
-      ) : null}
       {result === undefined ? null : <GoalAnalysisResultView result={result} />}
-      {state.kind === "fallback" ? (
-        <p className={styles["fallbackNotice"]} role="status">
-          AI 분석 대신 데모 계산을 보여드렸어요. 다시 시도할 수 있어요.
-        </p>
-      ) : null}
       {state.kind === "invalid_input" ? (
         <p className={styles["inputError"]} role="alert">
           목표를 1개 이상 입력해 주세요.
         </p>
       ) : null}
       <div className={styles["actionGroup"]}>
-        <p className={styles["privacyWarning"]}>
-          목표가 Google로 전송돼요. 민감한 정보는 제외해 주세요.
-        </p>
         <button
           aria-busy={isLoading}
           className={`${styles["action"]} ${result === undefined ? "" : styles["actionSecondary"]}`}
@@ -103,7 +82,12 @@ export function GoalAnalysisPanel({
           type="button"
         >
           <span className={styles["actionContent"]} key={state.kind}>
-            {isLoading ? <LoadingDots /> : null}
+            {isLoading ? (
+              <>
+                <LoadingDots />
+                목표 분석 중
+              </>
+            ) : null}
             {state.kind === "success" ? "다시 분석하기" : null}
             {state.kind === "fallback" ? "다시 분석하기" : null}
             {state.kind === "idle" || state.kind === "invalid_input" ? "성공 확률 분석하기" : null}
@@ -116,7 +100,7 @@ export function GoalAnalysisPanel({
 
 function LoadingDots() {
   return (
-    <span aria-label="목표 분석 중" className={styles["loadingDots"]} role="status">
+    <span aria-hidden="true" className={styles["loadingDots"]}>
       <i />
       <i />
       <i />

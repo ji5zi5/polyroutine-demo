@@ -129,11 +129,6 @@ export function CouponDetailDialog({
         ? h("p", null, `사용 ${dateTime.format(new Date(coupon.usedAt))}`)
         : null,
       mode === "confirm-use" && !used ? h("strong", null, "이 쿠폰을 사용 처리할까요?") : null,
-      h(
-        "p",
-        { className: styleClass("truthNote") },
-        "화면에서만 사용하는 데모 쿠폰이에요. 실제 결제나 교환에는 사용할 수 없어요.",
-      ),
     ),
     h(
       "div",

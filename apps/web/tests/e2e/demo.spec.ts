@@ -89,6 +89,30 @@ test("demo completes the mobile prediction routine", async ({ page }) => {
   // Then: the next card replaces it and the full four-screen demo can finish.
   await expect(page.getByText("51,100P", { exact: true })).toBeVisible()
   await expect(page.getByRole("heading", { name: "책 15쪽 읽고 3줄 요약하기" })).toBeVisible()
+  const secondCard = page.locator(".predictionCard")
+  const secondCardBox = await secondCard.boundingBox()
+  if (secondCardBox === null) throw new TypeError("second prediction card is not visible")
+  await page.mouse.move(
+    secondCardBox.x + secondCardBox.width / 2,
+    secondCardBox.y + secondCardBox.height / 2,
+  )
+  await page.mouse.down()
+  await page.mouse.move(
+    secondCardBox.x + secondCardBox.width / 2 + 72,
+    secondCardBox.y + secondCardBox.height / 2,
+    { steps: 6 },
+  )
+  await expect(secondCard).toHaveAttribute("data-swipe", "no")
+  const noStampBox = await secondCard.locator(".swipeStampNo").boundingBox()
+  if (noStampBox === null) throw new TypeError("second-card no stamp is not visible")
+  expect(noStampBox.x).toBeGreaterThanOrEqual(0)
+  expect(noStampBox.x + noStampBox.width).toBeLessThanOrEqual(375)
+  await page.mouse.move(
+    secondCardBox.x + secondCardBox.width / 2,
+    secondCardBox.y + secondCardBox.height / 2,
+  )
+  await page.mouse.up()
+  await expect(secondCard).toHaveAttribute("data-swipe", "idle")
   await choosePrediction(page, "no")
   await choosePrediction(page, "yes")
   await choosePrediction(page, "yes")
@@ -109,12 +133,12 @@ test("demo completes the mobile prediction routine", async ({ page }) => {
   await expect(page.getByText("77%", { exact: true })).toBeVisible()
   await page.getByRole("button", { name: "이 목표 상장하기" }).click()
 
-  await expect(page.getByRole("heading", { name: "오늘 내 목표" })).toBeVisible()
+  await expect(page.getByRole("heading", { name: "상장한 목표" })).toBeVisible()
   await expect(page.getByText("상장 완료", { exact: true })).toBeVisible()
   await page.getByRole("button", { name: "사진 인증하기" }).click()
 
   await expect(page.getByRole("heading", { name: "사진 인증" })).toBeVisible()
-  await expect(page.getByRole("button", { name: "사진 확인하기" })).toBeDisabled()
+  await expect(page.getByText("사진 인증하기", { exact: true })).toBeVisible()
   const photoInput = page.locator('input[type="file"]')
   await photoInput.setInputFiles({
     buffer: Buffer.from(
@@ -125,21 +149,20 @@ test("demo completes the mobile prediction routine", async ({ page }) => {
     name: "goal-proof.png",
   })
   await expect(page.getByRole("img", { name: "선택한 사진 미리보기" })).toBeVisible()
-  await page.getByRole("button", { name: "사진 확인하기" }).click()
-  await expect(page.getByText("파일 형식과 미리보기를 확인했어요.")).toBeVisible()
+  await expect(page.getByText("인증이 완료됐어요.")).toBeVisible()
   await page.getByRole("button", { name: "정산 결과 보기" }).click()
 
   await expect(page.getByRole("heading", { name: "오늘의 정산" })).toBeVisible()
-  await expect(page.getByText("+200점", { exact: true })).toBeVisible()
-  await expect(page.getByText("반전 가산점 ×2.0", { exact: true })).toBeVisible()
+  await expect(page.getByText("+130P", { exact: true })).toBeVisible()
+  await expect(page.getByText("반전 가산점", { exact: false })).toHaveCount(0)
   await page.getByRole("button", { name: "예측", exact: true }).click()
-  await expect(page.getByText("50,800P", { exact: true })).toBeVisible()
+  await expect(page.getByText("50,730P", { exact: true })).toBeVisible()
   await page.getByRole("button", { name: "포인트", exact: true }).click()
   await expect(page.getByRole("heading", { name: "내 포인트" })).toBeVisible()
-  await expect(page.getByText("50,800점", { exact: true })).toBeVisible()
+  await expect(page.getByText("50,730점", { exact: true })).toBeVisible()
   await page.getByRole("button", { name: "예측 결과 정산하기" }).click()
   await expect(page.getByText("적중 정산 +451P", { exact: true })).toBeVisible()
-  await expect(page.getByText("51,251점", { exact: true })).toBeVisible()
+  await expect(page.getByText("51,181점", { exact: true })).toBeVisible()
   await expect(page.getByRole("heading", { name: "포인트 상점" })).toBeVisible()
   await expect(page.locator("[data-shop-product]")).toHaveCount(8)
   await expect(page.getByText("1,500,000P", { exact: true })).toBeVisible()
@@ -148,7 +171,7 @@ test("demo completes the mobile prediction routine", async ({ page }) => {
   await page.getByRole("button", { name: "GS25 모바일 상품권 1천원권 50,000P로 구매" }).click()
   await expect(page.getByRole("dialog", { name: "GS25 모바일 상품권 1천원권" })).toBeVisible()
   await page.getByRole("button", { name: "구매하기", exact: true }).click()
-  await expect(page.getByText("1,251점", { exact: true })).toBeVisible()
+  await expect(page.getByText("1,181점", { exact: true })).toBeVisible()
   await page.getByRole("button", { name: "MY", exact: true }).click()
   await expect(page.getByRole("heading", { name: "내 정보" })).toBeVisible()
   await page.getByText("쿠폰 내역", { exact: true }).click()
@@ -239,7 +262,7 @@ test("AI estimate stays separate from the crowd prediction ratio", async ({ page
   await page.goto("/demo")
   await loginDemo(page)
 
-  await expect(page.getByText("예시 모델 추정 59%", { exact: true })).toBeVisible()
+  await expect(page.getByText("AI 모델 예측 59%", { exact: true })).toBeVisible()
   await expect(page.getByText("참여자 예측", { exact: true })).toBeVisible()
   await expect(page.getByText("가능 64%", { exact: true })).toBeVisible()
 })
@@ -278,14 +301,21 @@ test("multiple goals can be added at once as a daily checklist", async ({ page }
     await page.getByRole("button", { name: "목표 추가" }).click()
   }
   await expect(page.getByRole("list", { name: "추가한 목표" }).getByRole("listitem")).toHaveCount(3)
+  await page.getByLabel("인증 마감 날짜와 시간").fill("2026-08-25T21:30")
   await page.getByRole("button", { name: "성공 확률 분석하기" }).click()
   await expect(page.getByLabel("AI 예상 성공 확률").locator("strong")).toContainText("%")
-  await page.getByRole("button", { name: "이 목표 상장하기" }).click()
+  await page.getByRole("button", { name: "목표 3개 상장하기" }).click()
 
-  await expect(page.getByRole("list", { name: "오늘의 할 일" }).getByRole("listitem")).toHaveCount(
-    3,
-  )
+  await expect(page.getByRole("list", { name: "상장한 목표" }).getByRole("listitem")).toHaveCount(3)
   await expect(page.getByText("영어 단어 20개 복습", { exact: true })).toBeVisible()
+  await expect(page.getByText(/2026.*8.*25.*9:30/)).toBeVisible()
+
+  await page.getByRole("button", { name: "다른 목표 상장하기" }).click()
+  await goalInput.fill("책 10쪽 읽기")
+  await page.getByRole("button", { name: "목표 추가" }).click()
+  await page.getByRole("button", { name: "성공 확률 분석하기" }).click()
+  await page.getByRole("button", { name: "이 목표 상장하기" }).click()
+  await expect(page.locator(".listedGoalCard")).toHaveCount(2)
 })
 
 test("prediction feed has over one hundred varied cards including goal bundles", async ({

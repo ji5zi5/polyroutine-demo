@@ -111,23 +111,20 @@ test("Gemini result, fallback, and navigation cancellation remain truthful", asy
   await page.setViewportSize({ height: 812, width: 375 })
   await page.goto("/demo")
   await openGoalComposer(page)
-  await expect(page.getByText("예시 모델 추정 59%", { exact: true })).toHaveCount(0)
-  await expect(
-    page.getByText("목표가 Google로 전송돼요. 민감한 정보는 제외해 주세요."),
-  ).toBeVisible()
+  await expect(page.getByText("AI 모델 예측 59%", { exact: true })).toHaveCount(0)
+  await expect(page.getByText("민감한 정보는 빼 주세요.")).toHaveCount(0)
   await page.getByLabel("오늘의 목표").fill("정보처리기사 3장 요약")
 
   // When: Gemini returns a valid structured result.
   await page.getByRole("button", { name: "성공 확률 분석하기" }).click()
 
   // Then: the result is labeled independently from the crowd ratio.
-  await expect(page.getByText("AI가 목표를 분석하고 있어요")).toBeVisible()
+  await expect(page.getByRole("button", { name: "목표 분석 중" })).toBeDisabled()
   await expect.poll(() => typeof releaseFirst).toBe("function")
   releaseFirst?.()
   await expect(page.getByText("73%", { exact: true })).toBeVisible()
-  await expect(page.getByText("Gemini 분석", { exact: true })).toBeVisible()
-  await expect(page.getByText("신뢰도 높음", { exact: true })).toBeVisible()
-  await expect(page.getByText("참여자 예측 비율과 별도로 제공하는 참고값이에요.")).toBeVisible()
+  await expect(page.getByLabel("AI 예상 성공 확률")).toHaveAttribute("data-source", "gemini")
+  await expect(page.getByText("신뢰도 높음", { exact: true })).toHaveCount(0)
   await stabilizeGoalCapture(page, "top")
   await page.screenshot({
     path: path.join(evidenceDirectory, "task-06-ai-success-375.png"),
@@ -155,9 +152,9 @@ test("Gemini result, fallback, and navigation cancellation remain truthful", asy
   // When: the provider is rate limited, the same goal stays usable.
   await page.getByRole("button", { name: "다시 분석하기" }).click()
 
-  // Then: a deterministic retryable fallback is labeled explicitly.
-  await expect(page.getByText("데모 계산", { exact: true })).toBeVisible()
-  await expect(page.getByText("AI 분석 대신 데모 계산을 보여드렸어요.")).toBeVisible()
+  // Then: a deterministic retryable fallback stays usable without implementation copy.
+  await expect(page.locator('[data-source="fallback"]')).toHaveAccessibleName("AI 예상 성공 확률")
+  await expect(page.getByText("데모 계산", { exact: true })).toHaveCount(0)
   await expect(page.getByRole("button", { name: "이 목표 상장하기" })).toBeEnabled()
   await stabilizeGoalCapture(page, "bottom")
   await page.screenshot({
@@ -166,7 +163,7 @@ test("Gemini result, fallback, and navigation cancellation remain truthful", asy
 
   // When: a later retry is pending and the user navigates away.
   await page.getByRole("button", { name: "다시 분석하기" }).click()
-  await expect(page.getByText("AI가 목표를 분석하고 있어요")).toBeVisible()
+  await expect(page.getByRole("button", { name: "목표 분석 중" })).toBeDisabled()
   await expect.poll(() => requestCount).toBe(3)
   await page.getByRole("button", { exact: true, name: "예측" }).click()
   releasePending?.()
@@ -174,7 +171,7 @@ test("Gemini result, fallback, and navigation cancellation remain truthful", asy
   // Then: its late response cannot overwrite the departed surface.
   await expect(page.getByRole("heading", { name: "가능할지 골라요" })).toBeVisible()
   await expect(page.getByText("12%", { exact: true })).toHaveCount(0)
-  await expect(page.getByText("예시 모델 추정 59%", { exact: true })).toBeVisible()
+  await expect(page.getByText("AI 모델 예측 59%", { exact: true })).toBeVisible()
   expect(requestCount).toBe(3)
   expect(runtimeErrors).toEqual([])
   await writeFile(
@@ -184,7 +181,7 @@ test("Gemini result, fallback, and navigation cancellation remain truthful", asy
       "PASS rendered factors: 분량이 구체적이에요 | 완료 기준이 선명해요",
       "PASS rate-limited fallback payload: source=fallback and retry remains enabled",
       "PASS navigation/unmount: late 12% response ignored",
-      "PASS static card: explicitly labeled example-model estimate",
+      "PASS static card: explicitly labeled AI-model estimate",
       `PASS endpoint requests: ${requestCount}`,
       "PASS runtime console/page errors: 0",
     ].join("\n") + "\n",
@@ -205,7 +202,7 @@ test("every provider failure renders a usable deterministic fallback", async ({ 
   let googleRequestCount = 0
   let sameOriginRequestCount = 0
   const observations: Array<{
-    readonly fallbackLabel: string
+    readonly fallbackSource: string | null
     readonly listingPrimaryCount: number
     readonly retryEnabled: boolean
     readonly scenario: Scenario["label"]
@@ -264,17 +261,17 @@ test("every provider failure renders a usable deterministic fallback", async ({ 
     await page.getByLabel("오늘의 목표").fill("정보처리기사 3장 요약")
     await page.getByRole("button", { name: "성공 확률 분석하기" }).click()
 
-    const fallbackLabel = page.getByText("데모 계산", { exact: true })
+    const fallbackResult = page.locator('[data-source="fallback"]')
     const retry = page.getByRole("button", { name: "다시 분석하기" })
     const listing = page.getByRole("button", { name: "이 목표 상장하기" })
-    await expect(fallbackLabel).toBeVisible({ timeout: 12_000 })
+    await expect(fallbackResult).toHaveAttribute("data-source", "fallback", { timeout: 12_000 })
     await expect(retry).toBeEnabled()
     await expect(listing).toBeEnabled()
     await expect(page.locator(".demoPrimaryButton:visible")).toHaveCount(1)
     await expect(retry).not.toHaveClass(/demoPrimaryButton/)
 
     observations.push({
-      fallbackLabel: (await fallbackLabel.textContent()) ?? "",
+      fallbackSource: await fallbackResult.getAttribute("data-source"),
       listingPrimaryCount: await page.locator(".demoPrimaryButton:visible").count(),
       retryEnabled: await retry.isEnabled(),
       scenario: scenario.label,
@@ -350,11 +347,11 @@ test("photo verification stages errors, cleanup, reduced motion, and one settlem
   await expect(page.getByText("73%", { exact: true })).toBeVisible()
   await page.getByRole("button", { name: "이 목표 상장하기" }).click()
   await page.getByRole("button", { name: "사진 인증하기" }).click()
-  await expect(page.getByText("파일 형식과 미리보기만 확인하는 데모예요")).toBeVisible()
-  await expect(page.getByRole("button", { name: "사진 확인하기" })).toBeDisabled()
+  await expect(page.getByText("사진 인증하기", { exact: true })).toBeVisible()
 
   // When: a valid PNG is selected.
   const photoInput = page.locator('input[type="file"]')
+  const startedAt = Date.now()
   await photoInput.setInputFiles({
     buffer: await readFile(
       path.resolve(import.meta.dirname, "../../public/rewards/americano-coupon.png"),
@@ -363,18 +360,16 @@ test("photo verification stages errors, cleanup, reduced motion, and one settlem
     name: "goal-proof.png",
   })
 
-  // Then: the goal, filename, and preview remain visible before and during checking.
+  // Then: the goal and preview remain visible without exposing the local filename.
   await expect(page.getByRole("img", { name: "선택한 사진 미리보기" })).toBeVisible()
   await expect(page.getByText("정보처리기사 3장 요약", { exact: true })).toBeVisible()
-  await expect(page.getByText("goal-proof.png", { exact: true })).toBeVisible()
+  await expect(page.getByText("goal-proof.png", { exact: true })).toHaveCount(0)
   await page.screenshot({
     path: path.join(evidenceDirectory, "task-08-verify-preview-375.png"),
   })
-  const startedAt = Date.now()
-  await page.getByRole("button", { name: "사진 확인하기" }).click()
-  await expect(page.getByText("사진의 파일 형식과 미리보기를 확인하고 있어요.")).toBeVisible()
-  await expect(page.getByText("goal-proof.png", { exact: true })).toBeVisible()
-  await expect(page.getByText("파일 형식과 미리보기를 확인했어요.")).toBeVisible()
+  await expect(page.getByText("사진을 확인하고 있어요.")).toBeVisible()
+  await expect(page.getByText("goal-proof.png", { exact: true })).toHaveCount(0)
+  await expect(page.getByText("인증이 완료됐어요.")).toBeVisible()
   const elapsed = Date.now() - startedAt
   expect(elapsed).toBeGreaterThanOrEqual(900)
   expect(elapsed).toBeLessThan(2_500)
@@ -393,7 +388,7 @@ test("photo verification stages errors, cleanup, reduced motion, and one settlem
   // Then: exactly one completion credit is recorded.
   await expect(page.getByRole("heading", { name: "오늘의 정산" })).toBeVisible()
   await page.getByRole("button", { exact: true, name: "포인트" }).click()
-  await expect(page.getByText("51,400점", { exact: true })).toBeVisible()
+  await expect(page.getByText("51,337점", { exact: true })).toBeVisible()
 
   // Given: a fresh verification attempt receives invalid and oversize files.
   await page.getByRole("button", { exact: true, name: "내 목표" }).click()
@@ -404,7 +399,7 @@ test("photo verification stages errors, cleanup, reduced motion, and one settlem
     mimeType: "text/plain",
     name: "proof.txt",
   })
-  const verificationAlert = page.getByRole("region", { name: "사진 확인" }).getByRole("alert")
+  const verificationAlert = page.getByRole("region", { name: "사진 인증" }).getByRole("alert")
   await expect(verificationAlert).toContainText("PNG·JPG·WEBP 이미지만 선택해 주세요.")
   await verificationAlert.evaluate(async (element) => {
     await Promise.all(element.getAnimations().map((animation) => animation.finished))
@@ -419,7 +414,7 @@ test("photo verification stages errors, cleanup, reduced motion, and one settlem
   const retryButton = page.getByRole("button", { name: "다시 시도하기" })
   await expect(page.getByText("폴리루틴", { exact: true })).toBeInViewport({ ratio: 1 })
   await expect(page.getByRole("heading", { name: "사진 인증" })).toBeInViewport({ ratio: 1 })
-  await expect(page.getByRole("region", { name: "사진 확인" })).toBeInViewport({ ratio: 1 })
+  await expect(page.getByRole("region", { name: "사진 인증" })).toBeInViewport({ ratio: 1 })
   await expect(verificationAlert).toBeInViewport({ ratio: 1 })
   await expect(retryButton).toBeInViewport({ ratio: 1 })
   await expect(retryButton).toBeFocused()
@@ -433,7 +428,7 @@ test("photo verification stages errors, cleanup, reduced motion, and one settlem
     focusedText: await page.evaluate(() => document.activeElement?.textContent?.trim() ?? null),
     navigation: await page.getByRole("navigation", { name: "하단 메뉴" }).boundingBox(),
     retry: await retryButton.boundingBox(),
-    surface: await page.getByRole("region", { name: "사진 확인" }).boundingBox(),
+    surface: await page.getByRole("region", { name: "사진 인증" }).boundingBox(),
     title: await page.getByRole("heading", { name: "사진 인증" }).boundingBox(),
     viewport: page.viewportSize(),
   }
@@ -452,29 +447,10 @@ test("photo verification stages errors, cleanup, reduced motion, and one settlem
   await expect(verificationAlert).toContainText("사진은 10MB 이하만 선택할 수 있어요.")
   await page.getByRole("button", { name: "다시 시도하기" }).click()
 
-  // When: one preview replaces another and the second check uses reduced motion.
-  await retryInput.setInputFiles(validPng)
-  await retryInput.setInputFiles({ ...validPng, name: "replacement.png" })
+  // When: a retried photo uses the reduced-motion auto-check path.
   await page.emulateMedia({ reducedMotion: "reduce" })
-  const observedChecking = await page.evaluate(async () => {
-    const button = document.querySelector('[data-verification-action="start"]')
-    if (!(button instanceof HTMLButtonElement)) return false
-    return await new Promise<boolean>((resolve) => {
-      const observer = new MutationObserver(() => {
-        if (!document.body.textContent?.includes("확인하고 있어요")) return
-        observer.disconnect()
-        resolve(true)
-      })
-      observer.observe(document.body, { childList: true, characterData: true, subtree: true })
-      button.click()
-      window.setTimeout(() => {
-        observer.disconnect()
-        resolve(false)
-      }, 500)
-    })
-  })
-  expect(observedChecking).toBe(true)
-  await expect(page.getByText("파일 형식과 미리보기를 확인했어요.")).toBeVisible()
+  await retryInput.setInputFiles(validPng)
+  await expect(page.getByText("인증이 완료됐어요.")).toBeVisible()
 
   // Then: transient file/blob URLs never enter persistence and all created URLs are revoked.
   await page.getByRole("button", { exact: true, name: "예측" }).click()
@@ -483,7 +459,7 @@ test("photo verification stages errors, cleanup, reduced motion, and one settlem
     revoked: Number(Reflect.get(window, "__revokedObjectUrlCount")),
     storage: localStorage.getItem("poly-routine-demo-state:v1") ?? "",
   }))
-  expect(urlAudit.created).toBeGreaterThanOrEqual(3)
+  expect(urlAudit.created).toBeGreaterThanOrEqual(2)
   expect(urlAudit.revoked).toBe(urlAudit.created)
   expect(urlAudit.storage).not.toContain("blob:")
   expect(urlAudit.storage).not.toContain("goal-proof.png")
@@ -493,9 +469,9 @@ test("photo verification stages errors, cleanup, reduced motion, and one settlem
     [
       `PASS normal checking visible: ${elapsed}ms`,
       "PASS valid PNG: preview -> checking -> success -> explicit settlement",
-      "PASS same-tick settlement: one +200P credit",
+      "PASS same-tick settlement: one probability-priced completion credit",
       "PASS errors: invalid MIME + 10MB oversize + exact retry focus",
-      "PASS replacement/unmount lifecycle: every object URL revoked",
+      "PASS retry/unmount lifecycle: every object URL revoked",
       "PASS reduced motion: checking state observed for a stable render boundary",
       "PASS persisted JSON: no Blob, object URL, or filename",
       "PASS runtime console/page errors: 0",

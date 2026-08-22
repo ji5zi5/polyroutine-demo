@@ -22,7 +22,6 @@ function dayAccessibilityLabel(
   day: AttendanceCalendarMonth["days"][number],
 ): string {
   if (day.status === "claimed") return `${month}월 ${day.day}일, 내 출석 기록`
-  if (day.status === "example") return `${month}월 ${day.day}일, 데모 예시 출석`
   return `${month}월 ${day.day}일`
 }
 
@@ -47,7 +46,7 @@ export function AttendanceDialog({
         key: day.localDate,
       },
       h("span", null, day.day),
-      day.status === "none" ? null : h("small", null, day.status === "claimed" ? "출석" : "예시"),
+      day.status === "none" ? null : h("small", null, "출석"),
     ),
   )
   const cells = [...leadingCells, ...dayCells]
@@ -61,7 +60,6 @@ export function AttendanceDialog({
   return h(
     "dialog",
     {
-      "aria-describedby": "demo-attendance-description",
       "aria-labelledby": "demo-attendance-title",
       "aria-modal": true,
       className: styles["dialog"],
@@ -77,11 +75,6 @@ export function AttendanceDialog({
       { className: styles["dialogHeading"] },
       h("span", null, "매일 한 번 받을 수 있어요"),
       h("h2", { id: "demo-attendance-title" }, `${calendar.month}월 출석체크`),
-    ),
-    h(
-      "p",
-      { className: styles["exampleNote"], id: "demo-attendance-description" },
-      "연한 날짜는 화면 설명용 데모 예시이며 내 출석 기록이 아니에요.",
     ),
     h(
       "table",

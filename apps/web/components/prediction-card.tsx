@@ -26,7 +26,6 @@ type PredictionCardProps = {
   readonly nextCard?: PredictionCardModel
   readonly onChoice: (choice: PredictionChoice) => void
   readonly onSkip?: () => void
-  readonly rewardEligible?: boolean
 }
 
 const SWIPE_COMMIT_MS = 320
@@ -55,18 +54,14 @@ export function PredictionCard({
   nextCard = card,
   onChoice,
   onSkip,
-  rewardEligible = false,
 }: PredictionCardProps) {
   const cardRef = useRef<HTMLButtonElement>(null)
   const pointerIdRef = useRef<number | null>(null)
   const pointerOriginRef = useRef<number | null>(null)
   const timerRef = useRef<number | null>(null)
   const [committing, setCommitting] = useState(false)
-  const [committingChoice, setCommittingChoice] = useState<PredictionChoice | null>(null)
   const locked = busy || committing
   const yesPercent = card.yesPercent ?? 50
-  const yesPayout = Math.ceil(10_000 / yesPercent)
-  const noPayout = Math.ceil(10_000 / (100 - yesPercent))
 
   const positionCard = useCallback((distance: number): void => {
     const node = cardRef.current
@@ -99,7 +94,6 @@ export function PredictionCard({
         return
       }
       setCommitting(true)
-      setCommittingChoice(choice)
       cardRef.current?.setAttribute("data-committing", "true")
       const direction = choice === "yes" ? -1 : 1
       positionCard(direction * window.innerWidth)
@@ -107,7 +101,6 @@ export function PredictionCard({
         onChoice(choice)
         resetCard()
         setCommitting(false)
-        setCommittingChoice(null)
         timerRef.current = null
       }, SWIPE_COMMIT_MS)
     },
@@ -193,7 +186,7 @@ export function PredictionCard({
           </span>
           <div className="predictionSignals">
             <span className="aliasBadge">{card.anonymousAlias}</span>
-            <span className="aiEstimate">예시 모델 추정 {card.aiPercent ?? 50}%</span>
+            <span className="aiEstimate">AI 모델 예측 {card.aiPercent ?? 50}%</span>
           </div>
           <div className="predictionCardBody">
             <PredictionGoalContent card={card} />
@@ -218,23 +211,14 @@ export function PredictionCard({
             </section>
           </div>
         </button>
-        {committingChoice === null || !rewardEligible ? null : (
-          <span aria-live="polite" className="betCommitFeedback">
-            -100P · {committingChoice === "yes" ? "가능" : "불가능"} 베팅
-          </span>
-        )}
       </div>
-      <div className="predictionDecisionActions">
-        <div aria-hidden="true" className="swipeGestureGuide">
-          <span>← 가능 {rewardEligible ? `${yesPayout}P` : ""}</span>
-          <span>불가능 {rewardEligible ? `${noPayout}P` : ""} →</span>
-        </div>
-        {onSkip === undefined ? null : (
+      {onSkip === undefined ? null : (
+        <div className="predictionDecisionActions">
           <button className="swipeSkip" disabled={locked} onClick={onSkip} type="button">
             건너뛰기
           </button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

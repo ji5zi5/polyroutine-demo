@@ -291,42 +291,6 @@
   inline-size: 100%;
 }
 
-.betCommitFeedback {
-  animation: bet-commit-confirm var(--motion-slow) var(--motion-ease-out) both;
-  background: var(--tds-fg-primary);
-  border-radius: var(--radius-pill);
-  box-shadow: var(--shadow-2);
-  color: var(--tds-fg-inverse);
-  font-size: var(--text-caption);
-  font-variant-numeric: tabular-nums;
-  font-weight: var(--weight-strong);
-  inset-block-end: var(--space-5);
-  inset-inline-start: 50%;
-  padding: var(--space-2) var(--space-4);
-  pointer-events: none;
-  position: absolute;
-  white-space: nowrap;
-  z-index: 3;
-}
-
-@keyframes bet-commit-confirm {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, var(--space-3)) scale(0.96);
-  }
-
-  24%,
-  78% {
-    opacity: 1;
-    transform: translate(-50%, 0) scale(1);
-  }
-
-  100% {
-    opacity: 0;
-    transform: translate(-50%, calc(0px - var(--space-2))) scale(0.98);
-  }
-}
-
 .marketConsensusTitle {
   color: var(--text-tertiary);
   font-size: var(--text-caption);
@@ -384,13 +348,13 @@
 
 .swipeStampNo {
   color: var(--text-secondary);
-  inset-inline-end: var(--space-6);
+  inset-inline-start: var(--space-6);
   transform: rotate(var(--swipe-angle)) scale(0.86);
 }
 
 .swipeStampYes {
   color: var(--accent-primary);
-  inset-inline-start: var(--space-6);
+  inset-inline-end: var(--space-6);
   transform: rotate(calc(0deg - var(--swipe-angle))) scale(0.86);
 }
 
@@ -607,7 +571,6 @@
 @media (prefers-reduced-motion: reduce) {
   .predictionCardStage,
   .predictionCard,
-  .betCommitFeedback,
   .swipeStamp {
     animation: none;
     transition: none;

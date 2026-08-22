@@ -10,8 +10,6 @@ import {
   type DemoAction,
   type DemoState,
   type MarketPosition,
-  type MarketRoundHistory,
-  selectMarketRoundHistory,
   selectPendingMarketPositions,
 } from "../lib/demo-state"
 import { GoalAnalysisPanel } from "./demo-goal-analysis/goal-analysis-panel"
@@ -25,6 +23,12 @@ import { PredictionCard } from "./prediction-card"
 
 type DemoStep = "goal" | "listed" | "points" | "predict" | "profile" | "settle" | "verify"
 type DemoTab = "goal" | "points" | "predict" | "profile"
+type ListedGoalBatch = Readonly<{
+  deadline: string
+  id: string
+  probability: number
+  titles: readonly string[]
+}>
 
 const demoNavItems = [
   { icon: "M5 12h14M12 5l7 7-7 7", label: "예측", tab: "predict" },
@@ -32,6 +36,34 @@ const demoNavItems = [
   { icon: "M4 7h16v12H4zM4 10h16M8 15h4", label: "포인트", tab: "points" },
   { icon: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM5 21a7 7 0 0 1 14 0", label: "MY", tab: "profile" },
 ] as const satisfies readonly { icon: string; label: string; tab: DemoTab }[]
+
+const goalCounterSpacing =
+  /(\d+|한|두|세|네|다섯|여섯|일곱|여덟|아홉|열)\s+(?=(개|쪽|분|시간|줄|회|문제|장|페이지))/g
+
+function formatGoalText(goal: string): string {
+  return goal.replace(goalCounterSpacing, "$1\u00a0")
+}
+
+function toLocalDateTimeInput(date: Date): string {
+  const offset = date.getTimezoneOffset() * 60_000
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16)
+}
+
+function defaultDeadline(): string {
+  const deadline = new Date()
+  deadline.setDate(deadline.getDate() + 1)
+  deadline.setHours(22, 0, 0, 0)
+  return toLocalDateTimeInput(deadline)
+}
+
+const deadlineFormatter = new Intl.DateTimeFormat("ko-KR", {
+  dateStyle: "medium",
+  timeStyle: "short",
+})
+
+function completionReward(probability: number): number {
+  return Math.ceil(10_000 / probability)
+}
 
 function DemoTopBar({ label }: { readonly label: string }) {
   return (
@@ -77,19 +109,11 @@ type PointsScreenProps = Readonly<{
   now: Date
   onNavigate: (tab: DemoTab) => void
   pendingPositions: readonly MarketPosition[]
-  rounds: readonly MarketRoundHistory[]
   state: DemoState
   onDispatch: (action: DemoAction) => void
 }>
 
-function PointsScreen({
-  now,
-  onDispatch,
-  onNavigate,
-  pendingPositions,
-  rounds,
-  state,
-}: PointsScreenProps) {
+function PointsScreen({ now, onDispatch, onNavigate, pendingPositions, state }: PointsScreenProps) {
   return (
     <main className="demoViewport" key="points">
       <DemoTopBar label="포인트" />
@@ -101,7 +125,6 @@ function PointsScreen({
           now={now}
           onDispatch={onDispatch}
           pendingPositions={pendingPositions}
-          rounds={rounds}
           state={state}
         />
       </section>
@@ -116,6 +139,9 @@ export function PrototypeDemo() {
   const [cardIndex, setCardIndex] = useState(0)
   const [goalText, setGoalText] = useState("")
   const [goalAnalysisState, setGoalAnalysisState] = useState<GoalAnalysisState>({ kind: "idle" })
+  const [deadline, setDeadline] = useState(defaultDeadline)
+  const [listedGoals, setListedGoals] = useState<readonly ListedGoalBatch[]>([])
+  const [activeListingId, setActiveListingId] = useState<string | null>(null)
   const [marketMessage, setMarketMessage] = useState("")
 
   const snapshot = demo.snapshot
@@ -126,7 +152,9 @@ export function PrototypeDemo() {
   const nickname = demoState?.profile.nickname ?? "폴리 유저"
   const points = demoState?.balance ?? 0
   const pendingPositions = demoState === null ? [] : selectPendingMarketPositions(demoState)
-  const marketRounds = demoState === null ? [] : selectMarketRoundHistory(demoState)
+  const activeListing = listedGoals.find((listing) => listing.id === activeListingId)
+  const activeProbability = activeListing?.probability ?? 50
+  const earnedPoints = completionReward(activeProbability)
   const addGoalItem = (): void => {
     const nextGoal = goalText.trim()
     if (nextGoal === "" || (!goalItems.includes(nextGoal) && goalItems.length >= 5)) return
@@ -145,6 +173,14 @@ export function PrototypeDemo() {
     setStep("predict")
   }
 
+  const startAnotherListing = (): void => {
+    demo.dispatch({ titles: [], type: "replace_goals" })
+    setGoalText("")
+    setGoalAnalysisState({ kind: "idle" })
+    setDeadline(defaultDeadline())
+    setStep("goal")
+  }
+
   const navigate = (tab: DemoTab): void => {
     setGoalAnalysisState({ kind: "idle" })
     if (tab === "predict") {
@@ -155,7 +191,7 @@ export function PrototypeDemo() {
       setStep(tab)
       return
     }
-    setStep(goalItems.length > 0 ? "listed" : "goal")
+    setStep(listedGoals.length > 0 || goalItems.length > 0 ? "listed" : "goal")
   }
 
   const pendingGoal = goalText.trim()
@@ -173,7 +209,7 @@ export function PrototypeDemo() {
     return (
       <main aria-busy="true" className="demoViewport demoLoginViewport">
         <span aria-live="polite" className="ownedRewardsEmpty" role="status">
-          데모를 불러오고 있어요
+          불러오는 중
         </span>
       </main>
     )
@@ -236,17 +272,16 @@ export function PrototypeDemo() {
                 stake: 100,
                 type: "place_market_position",
               })
-              setMarketMessage(`-100P · ${choice === "yes" ? "가능" : "불가능"} 베팅`)
+              setMarketMessage("")
               setCardIndex((current) => (current + 1) % predictionCards.length)
             }}
             onSkip={() => {
               setMarketMessage("")
               setCardIndex((current) => (current + 1) % predictionCards.length)
             }}
-            rewardEligible={points >= 100}
           />
           {marketMessage === "" ? null : (
-            <p aria-live="polite" className="ownedRewardsEmpty">
+            <p aria-live="polite" className="marketNotice" role="alert">
               {marketMessage}
             </p>
           )}
@@ -260,7 +295,7 @@ export function PrototypeDemo() {
     return (
       <main className="demoViewport" key="goal">
         <DemoTopBar label="상장" />
-        <section className="demoScreen demoScrollableScreen">
+        <section className="demoScreen demoGoalScreen demoScrollableScreen">
           <div className="demoHeading">
             <h1>내 목표 상장하기</h1>
           </div>
@@ -301,7 +336,7 @@ export function PrototypeDemo() {
             <ul aria-label="추가한 목표" className="goalDraftList">
               {goalItems.map((goal) => (
                 <li key={goal}>
-                  <span className="goalDraftText">{goal}</span>
+                  <span className="goalDraftText">{formatGoalText(goal)}</span>
                   <button
                     aria-label={`${goal} 삭제`}
                     disabled={analyzing}
@@ -320,6 +355,16 @@ export function PrototypeDemo() {
               ))}
             </ul>
           ) : null}
+          <label className="goalDeadlineField">
+            <span>인증 마감</span>
+            <input
+              aria-label="인증 마감 날짜와 시간"
+              min={toLocalDateTimeInput(new Date())}
+              onChange={(event) => setDeadline(event.target.value)}
+              type="datetime-local"
+              value={deadline}
+            />
+          </label>
           <GoalAnalysisPanel
             goals={analysisGoals}
             onAnalysisStart={(goals) => {
@@ -332,10 +377,24 @@ export function PrototypeDemo() {
             <div className="demoBottomAction">
               <button
                 className="buttonFull demoPrimaryButton"
-                onClick={() => setStep("listed")}
+                disabled={deadline === ""}
+                onClick={() => {
+                  const id = `listing-${listedGoals.length + 1}`
+                  setListedGoals((current) => [
+                    ...current,
+                    {
+                      deadline,
+                      id,
+                      probability: analysisResult.probability,
+                      titles: [...goalItems],
+                    },
+                  ])
+                  setActiveListingId(id)
+                  setStep("listed")
+                }}
                 type="button"
               >
-                이 목표 상장하기
+                {goalItems.length > 1 ? `목표 ${goalItems.length}개 상장하기` : "이 목표 상장하기"}
               </button>
             </div>
           )}
@@ -348,43 +407,72 @@ export function PrototypeDemo() {
   if (step === "listed") {
     const listedAnalysis =
       analysisResult ?? analyzeGoalsFallback(GoalAnalysisRequestSchema.parse({ goals: goalItems }))
+    const visibleListings =
+      listedGoals.length > 0
+        ? listedGoals
+        : [
+            {
+              deadline,
+              id: "current-listing",
+              probability: listedAnalysis.probability,
+              titles: goalItems,
+            },
+          ]
     return (
       <main className="demoViewport" key="listed">
         <DemoTopBar label="내 목표" />
-        <section className="demoScreen">
+        <section className="demoScreen demoScrollableScreen">
           <div className="demoHeading">
-            <h1>오늘 내 목표</h1>
+            <h1>상장한 목표</h1>
           </div>
-          <section className="listedGoalCard">
-            <span className="statusLabel statusReady">상장 완료</span>
-            <ul aria-label="오늘의 할 일" className="listedGoalList">
-              {goalItems.map((goal, index) => (
-                <li key={goal}>
-                  <span aria-hidden="true" className="listedGoalIndex">
-                    {index + 1}
-                  </span>
-                  <strong>{goal}</strong>
-                </li>
-              ))}
-            </ul>
-            <dl>
-              <div>
-                <dt>AI 성공 확률</dt>
-                <dd>{listedAnalysis.probability}%</dd>
-              </div>
-              <div>
-                <dt>인증 마감</dt>
-                <dd>오후 10:00</dd>
-              </div>
-            </dl>
-          </section>
+          <div className="listedGoalStack">
+            {visibleListings.map((listing) => (
+              <article className="listedGoalCard" key={listing.id}>
+                <span className="statusLabel statusReady">상장 완료</span>
+                <ul aria-label="상장한 목표" className="listedGoalList">
+                  {listing.titles.map((goal, index) => (
+                    <li key={goal}>
+                      <span aria-hidden="true" className="listedGoalIndex">
+                        {index + 1}
+                      </span>
+                      <strong>{goal}</strong>
+                    </li>
+                  ))}
+                </ul>
+                <dl>
+                  <div>
+                    <dt>AI 성공 확률</dt>
+                    <dd>{listing.probability}%</dd>
+                  </div>
+                  <div>
+                    <dt>인증 마감</dt>
+                    <dd>{deadlineFormatter.format(new Date(listing.deadline))}</dd>
+                  </div>
+                </dl>
+                <button
+                  className="buttonFull demoPrimaryButton"
+                  onClick={() => {
+                    if (!listedGoals.some((candidate) => candidate.id === listing.id)) {
+                      setListedGoals([listing])
+                    }
+                    demo.dispatch({ titles: listing.titles, type: "replace_goals" })
+                    setActiveListingId(listing.id)
+                    setStep("verify")
+                  }}
+                  type="button"
+                >
+                  사진 인증하기
+                </button>
+              </article>
+            ))}
+          </div>
           <div className="demoBottomAction">
             <button
-              className="buttonFull demoPrimaryButton"
-              onClick={() => setStep("verify")}
+              className="buttonFull buttonQuiet demoPrimaryButton"
+              onClick={startAnotherListing}
               type="button"
             >
-              사진 인증하기
+              다른 목표 상장하기
             </button>
           </div>
         </section>
@@ -402,12 +490,12 @@ export function PrototypeDemo() {
             <h1>사진 인증</h1>
           </div>
           <DemoVerificationSurface
-            goal={goalItems.join(" · ")}
+            goal={(activeListing?.titles ?? goalItems).join(" · ")}
             onSettled={() => {
               const firstGoal = demoState.goals[0]
               if (firstGoal !== undefined) {
                 demo.dispatch({
-                  amount: 200,
+                  amount: earnedPoints,
                   goalId: firstGoal.id,
                   type: "credit_goal_completion",
                 })
@@ -430,7 +518,6 @@ export function PrototypeDemo() {
         onDispatch={demo.dispatch}
         onNavigate={navigate}
         pendingPositions={pendingPositions}
-        rounds={marketRounds}
         state={demoState}
       />
     )
@@ -460,6 +547,7 @@ export function PrototypeDemo() {
             onUpdateNickname={(nextNickname) => {
               demo.dispatch({ nickname: nextNickname, type: "update_profile" })
             }}
+            onUseCoupon={(couponId) => demo.dispatch({ couponId, type: "use_coupon" })}
             summary={summary}
           />
         </section>
@@ -476,26 +564,18 @@ export function PrototypeDemo() {
           <h1>오늘의 정산</h1>
         </div>
         <section className="settlementCard">
-          <span>획득 포인트</span>
-          <strong>+200점</strong>
-          <dl>
-            <div>
-              <dt>기본 포인트</dt>
-              <dd>+100점</dd>
-            </div>
-            <div>
-              <dt>반전 가산점 ×2.0</dt>
-              <dd>+100점</dd>
-            </div>
-          </dl>
+          <span>
+            AI 예측 {activeProbability}% · ×{(100 / activeProbability).toFixed(2)}
+          </span>
+          <strong>+{earnedPoints}P</strong>
         </section>
         <div className="demoBottomAction">
           <button
             className="buttonFull buttonQuiet demoPrimaryButton"
-            onClick={resetRoutineView}
+            onClick={startAnotherListing}
             type="button"
           >
-            처음부터 다시 보기
+            다른 목표 상장하기
           </button>
         </div>
       </section>

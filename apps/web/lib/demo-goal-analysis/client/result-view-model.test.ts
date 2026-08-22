@@ -6,7 +6,7 @@ describe("goal analysis result view model", () => {
     ["Gemini analysis", "success", "gemini", "Gemini 분석"],
     ["deterministic fallback", "fallback", "fallback", "데모 계산"],
   ] as const)(
-    "keeps the source and visible label independent for %s",
+    "keeps the source without exposing implementation metadata for %s",
     (_scenario, kind, source, label) => {
       // Given
       const result: GoalAnalysisResultState =
@@ -27,7 +27,7 @@ describe("goal analysis result view model", () => {
       const model = toGoalAnalysisResultViewModel(result)
 
       // Then
-      expect(model).toMatchObject({ label, probability: 73, source })
+      expect(model).toEqual({ factors: ["구체적이에요"], probability: 73, source })
     },
   )
 

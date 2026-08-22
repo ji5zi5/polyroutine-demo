@@ -8,14 +8,12 @@
   padding: var(--space-5);
 }
 
-.heading,
 .context,
 .actions {
   display: grid;
   gap: var(--space-3);
 }
 
-.heading p,
 .status p,
 .error p,
 .context dt {
@@ -91,17 +89,12 @@
 }
 
 .actions {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.actions > :only-child {
-  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .fileSelect,
 .primaryAction,
-.secondaryAction,
-.resetAction {
+.secondaryAction {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -118,8 +111,7 @@
 }
 
 .fileSelect,
-.secondaryAction,
-.resetAction {
+.secondaryAction {
   color: var(--text-primary);
   background: var(--surface-secondary);
   border-color: var(--border-default);
@@ -138,16 +130,14 @@
 
 .fileSelect:focus-within,
 .primaryAction:focus-visible,
-.secondaryAction:focus-visible,
-.resetAction:focus-visible {
+.secondaryAction:focus-visible {
   outline: var(--focus-width) solid var(--focus);
   outline-offset: var(--space-1);
 }
 
 .fileSelect:active,
 .primaryAction:active:not(:disabled),
-.secondaryAction:active,
-.resetAction:active {
+.secondaryAction:active {
   transform: translateY(var(--press-distance));
 }
 
@@ -161,10 +151,6 @@
 .fileSelect {
   position: relative;
   overflow: hidden;
-}
-
-.resetAction {
-  grid-column: 1 / -1;
 }
 
 @keyframes verification-status-enter {
@@ -188,8 +174,7 @@
 
   .fileSelect,
   .primaryAction,
-  .secondaryAction,
-  .resetAction {
+  .secondaryAction {
     transition: none;
   }
 }

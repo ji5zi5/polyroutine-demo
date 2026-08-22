@@ -271,22 +271,28 @@
 }
 
 .historyList li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  min-block-size: var(--target-min);
   border-block-start: var(--border-width) solid var(--border-default);
+}
+
+.historyList button,
+.historyList button:hover:not(:disabled) {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--text-primary);
+  display: flex;
+  gap: var(--space-4);
+  inline-size: 100%;
+  justify-content: space-between;
+  min-block-size: var(--target-min);
+  padding: var(--space-2) 0;
+  text-align: start;
 }
 
 .historyList strong {
   min-width: 0;
   overflow-wrap: anywhere;
   font-size: var(--text-body);
-}
-
-.emptyHistory {
-  padding-block: var(--space-3);
 }
 
 .accountActions {

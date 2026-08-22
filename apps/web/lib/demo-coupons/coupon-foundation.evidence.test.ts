@@ -107,7 +107,7 @@ describe("Task 10 foundation evidence", () => {
         usedIds: selectUsedCoupons(coupons).map((coupon) => coupon.id),
       }
       const html = [
-        createElement(ShopCatalog, { balance: 20_000, coupons, onSelectProduct: () => {} }),
+        createElement(ShopCatalog, { balance: 20_000, onSelectProduct: () => {} }),
         createElement(PurchaseCouponDialog, {
           balance: 49_999,
           onClose: () => {},

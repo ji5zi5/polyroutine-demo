@@ -54,24 +54,24 @@ function fixtureCoupons() {
 }
 
 describe("isolated demo shop surfaces", () => {
-  it("renders eight expensive products with non-disabled primary purchase actions and ownership context", () => {
-    // Given: the fixed catalog and repeat-purchase ownership
-    const fixture = fixtureCoupons()
+  it("renders eight expensive products with non-disabled primary purchase actions", () => {
+    // Given: the fixed catalog
 
     // When: the catalog surface renders at a low balance
     const html = renderToStaticMarkup(
       createElement(ShopCatalog, {
         balance: 10,
-        coupons: [fixture.available, fixture.used],
         onSelectProduct: () => {},
       }),
     )
 
-    // Then: all products remain inspectable and each action exposes image name price and quantity
+    // Then: all products remain inspectable without wallet details
     expect((html.match(/data-shop-product=/g) ?? []).length).toBe(8)
     expect((html.match(/data-shop-purchase=/g) ?? []).length).toBe(8)
     expect(html).not.toContain('disabled=""')
-    expect(html).toContain("보유 2개")
+    expect(html).not.toContain("보유 2개")
+    expect(html).not.toContain("아직 보유하지 않았어요")
+    expect(html).not.toContain("예측으로 모은 포인트를 사용할 수 있어요")
     for (const product of couponCatalog) {
       expect(html).toContain(`alt="${product.name}"`)
       expect(html).toContain(`${product.cost.toLocaleString("ko-KR")}P`)
@@ -107,7 +107,7 @@ describe("isolated demo shop surfaces", () => {
     expect(purchaseHtml).toContain('disabled=""')
     expect(detailHtml).toContain("이 쿠폰을 사용 처리할까요?")
     expect(detailHtml).toContain("사용 확정하기")
-    expect(detailHtml).toContain("실제 결제나 교환에는 사용할 수 없어요")
+    expect(detailHtml).not.toContain("데모 쿠폰")
     expect(detailHtml).not.toMatch(/바코드|실물|배송|제휴 API/)
   })
 

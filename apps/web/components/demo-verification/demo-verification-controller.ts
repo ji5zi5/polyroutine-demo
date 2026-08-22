@@ -10,7 +10,6 @@ export type DemoVerificationSurfaceController = {
   readonly retry: () => void
   readonly select: (file: StagedPhoto) => Promise<void>
   readonly settle: () => boolean
-  readonly startChecking: () => void
   readonly state: () => PhotoVerificationState<PhotoVerificationError>
   readonly unmount: () => void
 }
@@ -50,16 +49,16 @@ export function createDemoVerificationSurfaceController({
       notify()
       await selection
       notify()
+      if (model.state().kind === "preview") {
+        model.startChecking()
+        notify()
+      }
     },
     settle: () => {
       if (settlementRequested || model.state().kind !== "success") return false
       settlementRequested = true
       onSettled()
       return true
-    },
-    startChecking: () => {
-      model.startChecking()
-      notify()
     },
     state: () => model.state(),
     unmount: () => model.unmount(),

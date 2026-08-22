@@ -22,35 +22,33 @@ export function TransactionHistory({
   defaultExpanded = false,
   transactions,
 }: TransactionHistoryProps) {
-  const content =
-    transactions.length === 0
-      ? h("p", { className: styles["empty"] }, "아직 포인트 내역이 없어요.")
-      : h(
-          "ol",
-          { className: styles["transactionList"] },
-          ...transactions.map((transaction) =>
-            h(
-              "li",
-              { className: styles["transaction"], key: transaction.eventId },
-              h(
-                "div",
-                { className: styles["transactionIdentity"] },
-                h("strong", null, transaction.label),
-                h(
-                  "time",
-                  { dateTime: transaction.occurredAt },
-                  dateTime.format(new Date(transaction.occurredAt)),
-                ),
-              ),
-              h(
-                "div",
-                { className: styles["transactionAmount"] },
-                h("strong", { "data-direction": transaction.direction }, signedPoints(transaction)),
-                h("span", null, `결과 잔액 ${points.format(transaction.resultingBalance)}P`),
-              ),
-            ),
+  if (transactions.length === 0) return null
+  const content = h(
+    "ol",
+    { className: styles["transactionList"] },
+    ...transactions.map((transaction) =>
+      h(
+        "li",
+        { className: styles["transaction"], key: transaction.eventId },
+        h(
+          "div",
+          { className: styles["transactionIdentity"] },
+          h("strong", null, transaction.label),
+          h(
+            "time",
+            { dateTime: transaction.occurredAt },
+            dateTime.format(new Date(transaction.occurredAt)),
           ),
-        )
+        ),
+        h(
+          "div",
+          { className: styles["transactionAmount"] },
+          h("strong", { "data-direction": transaction.direction }, signedPoints(transaction)),
+          h("span", null, `결과 잔액 ${points.format(transaction.resultingBalance)}P`),
+        ),
+      ),
+    ),
+  )
   return h(
     "details",
     { className: styles["history"], open: defaultExpanded || undefined },

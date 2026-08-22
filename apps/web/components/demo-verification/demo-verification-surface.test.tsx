@@ -64,10 +64,8 @@ function render(
     createElement(DemoVerificationSurfaceView, {
       goal,
       onFileSelected: () => {},
-      onReset: () => {},
       onRetry: () => {},
       onSettle: () => {},
-      onStartChecking: () => {},
       settlementRequested: false,
       state,
     }),
@@ -75,7 +73,7 @@ function render(
 }
 
 describe("demo verification surface", () => {
-  it("renders a disabled check action before a file is ready and preserves staged context while checking", () => {
+  it("offers one photo-authentication action and preserves staged context while checking", () => {
     // Given: a screen before selection and a staged checking state
     const idle = render({ attempt: 0, kind: "idle" })
     const checking = render({
@@ -86,13 +84,16 @@ describe("demo verification surface", () => {
     })
 
     // When: each state is rendered as accessible markup
-    const disabledAction = /data-verification-action="start" disabled=""/.test(idle)
+    const startAction = /data-verification-action="start"/.test(idle)
 
     // Then: the action is gated and checking keeps the goal and chosen file visible
-    expect(disabledAction).toBe(true)
+    expect(startAction).toBe(false)
+    expect(idle).toContain("사진 인증하기")
+    expect(idle).not.toContain("사진 선택하기")
+    expect(idle).not.toContain("사진 확인하기")
     expect(checking).toContain('aria-busy="true"')
     expect(checking).toContain("정보처리기사 3장 요약")
-    expect(checking).toContain("today-note.png")
+    expect(checking).not.toContain("today-note.png")
   })
 
   it("renders file errors with a retry target and an explicit success settlement action", () => {
@@ -108,7 +109,8 @@ describe("demo verification surface", () => {
     expect(error).toContain('role="alert"')
     expect(retryTarget).toBe(true)
     expect(settlementAction).toBe(true)
-    expect(success).toContain("파일 형식과 미리보기만 확인하는 데모예요")
+    expect(success).not.toContain("데모예요")
+    expect(success).toContain("인증이 완료됐어요")
   })
 
   it("settles only after deterministic success and releases the staged URL when unmounted", async () => {
@@ -126,7 +128,6 @@ describe("demo verification surface", () => {
 
     // When: a valid file completes and settlement is requested twice
     await controller.select(photo())
-    controller.startChecking()
     harness.run(1)
     const completedState = controller.state().kind
     const firstSettlement = controller.settle()
@@ -156,16 +157,13 @@ describe("demo verification surface", () => {
     const malformedState = controller.state()
     controller.retry()
     await controller.select(photo({ name: "reset.png" }))
-    controller.startChecking()
     controller.reset()
     harness.run(1)
     await controller.select(photo({ name: "replace.png" }))
-    controller.startChecking()
     await controller.select(photo({ type: "text/plain" }))
     controller.retry()
     harness.run(2)
     await controller.select(photo({ name: "unmount.png" }))
-    controller.startChecking()
     controller.unmount()
     harness.run(3)
 
@@ -282,7 +280,7 @@ describe("demo verification surface", () => {
     expect(frames).toHaveLength(0)
   })
 
-  it("renders untrusted goal and file names as text instead of executable markup", () => {
+  it("renders an untrusted goal as text without exposing the selected filename", () => {
     // Given: hostile text supplied through the public goal and staged-file boundaries
     const html = render(
       {
@@ -300,7 +298,7 @@ describe("demo verification surface", () => {
     // Then: React escapes the untrusted values in the accessible surface
     expect(hasExecutableTag).toBe(false)
     expect(html).toContain("&lt;script&gt;alert(1)&lt;/script&gt;")
-    expect(html).toContain("&lt;img src=x onerror=alert(1)&gt;.png")
+    expect(html).not.toContain("onerror=alert(1)")
   })
 
   it.skipIf(process.env["WRITE_TASK_08_EVIDENCE"] !== "true")(

@@ -1,8 +1,5 @@
 import { createElement as h } from "react"
-import {
-  SEEDED_ATTENDANCE_EXAMPLE_DATES,
-  selectAttendanceCalendar,
-} from "../../lib/demo-points/attendance-calendar"
+import { selectAttendanceCalendar } from "../../lib/demo-points/attendance-calendar"
 import {
   selectAttendanceEligibility,
   selectPointTransactions,
@@ -15,7 +12,6 @@ import { TransactionHistory } from "./transaction-history"
 export type DemoPointsSurfaceProps = Readonly<{
   attendanceDialogOpen: boolean
   defaultHistoryExpanded?: boolean
-  exampleDates?: readonly string[]
   now: Date
   onClaimAttendance: (action: Extract<DemoAction, { readonly type: "claim_attendance" }>) => void
   onCloseAttendance: () => void
@@ -29,7 +25,6 @@ const points = new Intl.NumberFormat("ko-KR")
 export function DemoPointsSurface({
   attendanceDialogOpen,
   defaultHistoryExpanded = false,
-  exampleDates = SEEDED_ATTENDANCE_EXAMPLE_DATES,
   now,
   onClaimAttendance,
   onCloseAttendance,
@@ -41,7 +36,7 @@ export function DemoPointsSurface({
   const transactions = selectPointTransactions(state)
   const attendanceDialog = attendanceDialogOpen
     ? h(AttendanceDialog, {
-        calendar: selectAttendanceCalendar(state, now, exampleDates),
+        calendar: selectAttendanceCalendar(state, now),
         eligibility,
         onClaim: onClaimAttendance,
         onClose: onCloseAttendance,

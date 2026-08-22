@@ -118,12 +118,14 @@ export async function preload(page: Page, value = emptySnapshot()) {
   )
 }
 
-async function settle(page: Page): Promise<void> {
+async function settle(page: Page, resetScroll: boolean): Promise<void> {
   await page.mouse.move(1, 1)
-  await page.evaluate(async () => {
+  await page.evaluate(async (shouldResetScroll) => {
     window.scrollTo(0, 0)
-    for (const screen of document.querySelectorAll<HTMLElement>(".demoScrollableScreen")) {
-      screen.scrollTo({ left: 0, top: 0 })
+    if (shouldResetScroll) {
+      for (const screen of document.querySelectorAll<HTMLElement>(".demoScrollableScreen")) {
+        screen.scrollTo({ left: 0, top: 0 })
+      }
     }
     await Promise.all(
       document.getAnimations().map((animation) => animation.finished.catch(() => undefined)),
@@ -131,11 +133,16 @@ async function settle(page: Page): Promise<void> {
     await new Promise<void>((resolve) =>
       requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
     )
-  })
+  }, resetScroll)
 }
 
-export async function capture(page: Page, viewport: string, state: string): Promise<void> {
-  await settle(page)
+export async function capture(
+  page: Page,
+  viewport: string,
+  state: string,
+  resetScroll = true,
+): Promise<void> {
+  await settle(page, resetScroll)
   await page.screenshot({
     animations: "disabled",
     path: path.join(visualDir, `${state}-${viewport}.png`),

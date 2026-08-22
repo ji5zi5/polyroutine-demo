@@ -1,72 +1,29 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import {
-  type CouponInstance,
-  couponCatalog,
-  type RewardProduct,
-} from "../../lib/demo-coupons/index"
-import type {
-  DemoAction,
-  DemoState,
-  MarketPosition,
-  MarketRoundHistory,
-} from "../../lib/demo-state/index"
-import { PortfolioHistory } from "../demo-market/portfolio-history"
-import {
-  CouponDetailDialog,
-  CouponHistory,
-  PurchaseCouponDialog,
-  ShopCatalog,
-} from "../demo-shop/demo-shop-surface"
+import type { RewardProduct } from "../../lib/demo-coupons/index"
+import type { DemoAction, DemoState, MarketPosition } from "../../lib/demo-state/index"
+import { PurchaseCouponDialog, ShopCatalog } from "../demo-shop/demo-shop-surface"
 import { DemoPointsSurface } from "./demo-points-surface"
 
 type DemoPointsTabProps = Readonly<{
   now: Date
   onDispatch: (action: DemoAction) => void
   pendingPositions: readonly MarketPosition[]
-  rounds: readonly MarketRoundHistory[]
   state: DemoState
 }>
 
-type CouponDialogState = Readonly<{
-  couponId: string
-  mode: "confirm-use" | "detail"
-}>
-
-export function DemoPointsTab({
-  now,
-  onDispatch,
-  pendingPositions,
-  rounds,
-  state,
-}: DemoPointsTabProps) {
+export function DemoPointsTab({ now, onDispatch, pendingPositions, state }: DemoPointsTabProps) {
   const purchaseLocked = useRef(false)
-  const useLocked = useRef(false)
   const [attendanceOpen, setAttendanceOpen] = useState(false)
-  const [couponDialog, setCouponDialog] = useState<CouponDialogState | null>(null)
   const [selectedProduct, setSelectedProduct] = useState<RewardProduct | null>(null)
   const [settlementFeedback, setSettlementFeedback] = useState<number | null>(null)
-
-  const selectedCoupon =
-    couponDialog === null
-      ? undefined
-      : state.coupons.find((coupon) => coupon.id === couponDialog.couponId)
-  const selectedCouponProduct =
-    selectedCoupon === undefined
-      ? undefined
-      : couponCatalog.find((product) => product.id === selectedCoupon.catalogId)
 
   useEffect(() => {
     if (settlementFeedback === null) return
     const timer = window.setTimeout(() => setSettlementFeedback(null), 800)
     return () => window.clearTimeout(timer)
   }, [settlementFeedback])
-
-  const openCoupon = (coupon: CouponInstance): void => {
-    useLocked.current = false
-    setCouponDialog({ couponId: coupon.id, mode: "detail" })
-  }
 
   return (
     <>
@@ -117,18 +74,13 @@ export function DemoPointsTab({
           </button>
         </section>
       )}
-      {pendingPositions.length === 0 && rounds.length === 0 ? null : (
-        <PortfolioHistory pendingPositions={pendingPositions} rounds={rounds} />
-      )}
       <ShopCatalog
         balance={state.balance}
-        coupons={state.coupons}
         onSelectProduct={(product) => {
           purchaseLocked.current = false
           setSelectedProduct(product)
         }}
       />
-      <CouponHistory coupons={state.coupons} onSelectCoupon={openCoupon} products={couponCatalog} />
       {selectedProduct === null ? null : (
         <PurchaseCouponDialog
           balance={state.balance}
@@ -145,28 +97,6 @@ export function DemoPointsTab({
             setSelectedProduct(null)
           }}
           product={selectedProduct}
-        />
-      )}
-      {selectedCoupon === undefined ||
-      selectedCouponProduct === undefined ||
-      couponDialog === null ? null : (
-        <CouponDetailDialog
-          coupon={selectedCoupon}
-          mode={couponDialog.mode}
-          onClose={() => setCouponDialog(null)}
-          onConfirmUse={() => {
-            if (useLocked.current) return
-            useLocked.current = true
-            onDispatch({ couponId: selectedCoupon.id, type: "use_coupon" })
-            setCouponDialog(null)
-            window.requestAnimationFrame(() => {
-              document
-                .querySelector<HTMLElement>('details[data-coupon-group="used"] > summary')
-                ?.focus()
-            })
-          }}
-          onRequestUse={() => setCouponDialog({ couponId: selectedCoupon.id, mode: "confirm-use" })}
-          product={selectedCouponProduct}
         />
       )}
     </>
