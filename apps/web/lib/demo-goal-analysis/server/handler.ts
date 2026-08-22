@@ -35,16 +35,35 @@ function jsonResponse(body: object, status: number, headers?: HeadersInit): Resp
   })
 }
 
-async function readLimitedBody(request: Request): Promise<string | undefined> {
+async function readLimitedBody(request: Request): Promise<string | null | undefined> {
   const declaredLength = Number(request.headers.get("content-length"))
   if (Number.isFinite(declaredLength) && declaredLength > GOAL_ANALYSIS_BODY_LIMIT_BYTES) {
     return undefined
   }
 
-  const body = await request.text()
-  return new TextEncoder().encode(body).byteLength <= GOAL_ANALYSIS_BODY_LIMIT_BYTES
-    ? body
-    : undefined
+  const reader = request.body?.getReader()
+  if (reader === undefined) return ""
+
+  const decoder = new TextDecoder()
+  let body = ""
+  let byteLength = 0
+  while (true) {
+    let readResult: ReadableStreamReadResult<Uint8Array>
+    try {
+      readResult = await reader.read()
+    } catch {
+      return null
+    }
+    const { done, value } = readResult
+    if (done) return body + decoder.decode()
+
+    byteLength += value.byteLength
+    if (byteLength > GOAL_ANALYSIS_BODY_LIMIT_BYTES) {
+      void reader.cancel().catch(() => undefined)
+      return undefined
+    }
+    body += decoder.decode(value, { stream: true })
+  }
 }
 
 export function createGoalAnalysisHandler(
@@ -63,6 +82,7 @@ export function createGoalAnalysisHandler(
     }
 
     const body = await readLimitedBody(request)
+    if (body === null) return jsonResponse({ code: "invalid_input" }, 400)
     if (body === undefined) return jsonResponse({ code: "invalid_input" }, 413)
 
     let input: unknown
