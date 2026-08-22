@@ -1,24 +1,12 @@
 import { spawnSync } from "node:child_process"
+import { normalizePlaywrightArguments } from "./run-e2e-arguments.mjs"
 
 const packageManager = process.env.npm_execpath
 if (packageManager === undefined) {
   throw new TypeError("The E2E runner must be invoked from a pnpm package script")
 }
 
-const playwrightArguments = []
-const input = process.argv.slice(2)
-
-for (let index = 0; index < input.length; index += 1) {
-  const argument = input[index]
-  if (argument === "--filter") {
-    const value = input[index + 1]
-    if (value === undefined) throw new TypeError("--filter requires a value")
-    playwrightArguments.push("--grep", value)
-    index += 1
-  } else if (argument !== undefined) {
-    playwrightArguments.push(argument)
-  }
-}
+const playwrightArguments = normalizePlaywrightArguments(process.argv.slice(2))
 
 function runPackageManager(argumentsList) {
   const result = spawnSync(process.execPath, [packageManager, ...argumentsList], {

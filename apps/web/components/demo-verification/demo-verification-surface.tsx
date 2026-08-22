@@ -85,8 +85,6 @@ export function DemoVerificationSurface({ goal, onSettled }: DemoVerificationSur
   })
   const controllerRef = useRef<DemoVerificationSurfaceController | null>(null)
 
-  onSettledRef.current = onSettled
-
   if (controllerRef.current === null) {
     const model: PhotoVerificationModel = createPhotoVerificationModel(
       browserDependencies(() => {
@@ -106,6 +104,10 @@ export function DemoVerificationSurface({ goal, onSettled }: DemoVerificationSur
   }
 
   const controller = controllerRef.current
+
+  useEffect(() => {
+    onSettledRef.current = onSettled
+  }, [onSettled])
 
   useEffect(() => {
     if (state.kind !== "error") return

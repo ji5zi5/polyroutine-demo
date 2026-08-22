@@ -1,14 +1,19 @@
 import path from "node:path"
 import { defineConfig } from "@playwright/test"
 
+const task13EvidenceDirectory = path.resolve(
+  import.meta.dirname,
+  "../../.omo/evidence/polyroutine-demo-next-iteration",
+)
+
 // biome-ignore lint/style/noDefaultExport: Playwright discovers the configuration through its default export.
 export default defineConfig({
   expect: { timeout: 5_000 },
-  outputDir: path.resolve(
-    import.meta.dirname,
-    "../../.omo/evidence/demo/mobile-prototype/playwright",
-  ),
-  reporter: "line",
+  outputDir: path.join(task13EvidenceDirectory, "task-13-playwright-artifacts"),
+  reporter: [
+    ["line"],
+    ["json", { outputFile: path.join(task13EvidenceDirectory, "task-13-report.raw.json") }],
+  ],
   testDir: "./tests/e2e",
   testMatch: "demo*.spec.ts",
   use: {

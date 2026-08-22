@@ -151,8 +151,9 @@ test("demo completes the mobile prediction routine", async ({ page }) => {
   await expect(page.getByText("1,251점", { exact: true })).toBeVisible()
   await page.getByRole("button", { name: "MY", exact: true }).click()
   await expect(page.getByRole("heading", { name: "내 정보" })).toBeVisible()
-  await expect(page.getByRole("heading", { name: "보유 쿠폰" })).toBeVisible()
-  await expect(page.getByRole("img", { name: "GS25 모바일 상품권 1천원권" })).toBeVisible()
+  await page.getByText("쿠폰 내역", { exact: true }).click()
+  await expect(page.getByRole("heading", { name: "사용 가능 1개" })).toBeVisible()
+  await expect(page.getByText("GS25 모바일 상품권 1천원권", { exact: true })).toBeVisible()
   await page.getByRole("button", { name: "로그아웃", exact: true }).click()
   await expect(page.getByRole("heading", { name: "오늘도 가볍게 시작해요" })).toBeVisible()
 
