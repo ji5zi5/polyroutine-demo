@@ -6,7 +6,7 @@ import {
   GoalAnalysisResultSchema,
 } from "./contract"
 
-export const GEMINI_ANALYSIS_MODEL = "gemini-2.5-flash-lite" as const
+export const GEMINI_ANALYSIS_MODEL = "gemini-3.5-flash-lite" as const
 
 export const GEMINI_RESULT_JSON_SCHEMA = {
   type: "object",

@@ -100,7 +100,9 @@ describe("Gemini structured JSON transport", () => {
     const result = await provider.analyze(GoalAnalysisRequestSchema.parse({ goals: [injection] }))
 
     // Then
-    expect(capturedUrl).toContain(`/models/${GEMINI_ANALYSIS_MODEL}:generateContent`)
+    expect(capturedUrl).toBe(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
+    )
     expect(capturedJson).toMatchObject({
       contents: [{ role: "user", parts: [{ text: JSON.stringify({ goals: [injection] }) }] }],
       generationConfig: { responseMimeType: "application/json" },
