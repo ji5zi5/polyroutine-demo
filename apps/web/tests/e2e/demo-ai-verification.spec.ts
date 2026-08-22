@@ -176,7 +176,7 @@ test("Gemini result, fallback, and navigation cancellation remain truthful", asy
   expect(runtimeErrors).toEqual([])
   await writeFile(
     path.join(evidenceDirectory, "task-06-ai-e2e.txt"),
-    [
+    `${[
       "PASS mocked Gemini: 73/high/two factors/source=gemini",
       "PASS rendered factors: 분량이 구체적이에요 | 완료 기준이 선명해요",
       "PASS rate-limited fallback payload: source=fallback and retry remains enabled",
@@ -184,7 +184,7 @@ test("Gemini result, fallback, and navigation cancellation remain truthful", asy
       "PASS static card: explicitly labeled AI-model estimate",
       `PASS endpoint requests: ${requestCount}`,
       "PASS runtime console/page errors: 0",
-    ].join("\n") + "\n",
+    ].join("\n")}\n`,
     "utf8",
   )
 })
@@ -466,7 +466,7 @@ test("photo verification stages errors, cleanup, reduced motion, and one settlem
   expect(runtimeErrors).toEqual([])
   await writeFile(
     path.join(evidenceDirectory, "task-08-verify-e2e.txt"),
-    [
+    `${[
       `PASS normal checking visible: ${elapsed}ms`,
       "PASS valid PNG: preview -> checking -> success -> explicit settlement",
       "PASS same-tick settlement: one probability-priced completion credit",
@@ -475,7 +475,7 @@ test("photo verification stages errors, cleanup, reduced motion, and one settlem
       "PASS reduced motion: checking state observed for a stable render boundary",
       "PASS persisted JSON: no Blob, object URL, or filename",
       "PASS runtime console/page errors: 0",
-    ].join("\n") + "\n",
+    ].join("\n")}\n`,
     "utf8",
   )
 })
